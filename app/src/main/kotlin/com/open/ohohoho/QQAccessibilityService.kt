@@ -101,6 +101,8 @@ class QQAccessibilityService : AccessibilityService() {
             }
 
             TYPE_VIEW_TEXT_CHANGED -> {
+                // 每次重新加载，让功能开关/处理模式改动立即生效
+                cachedConfig = CatConfig.load(this)
                 val mode = cachedConfig?.processingMode ?: CatConfig.MODE_PUNCTUATION
                 if (mode == CatConfig.MODE_REALTIME) {
                     doProcess(isFinal = false)
@@ -152,11 +154,9 @@ class QQAccessibilityService : AccessibilityService() {
             // —— 日志：输出当前聊天输入内容 ——
             AppLog.input(text)
 
-            var config = cachedConfig
-            if (config == null) {
-                config = CatConfig.load(this)
-                cachedConfig = config
-            }
+            // 每次处理都读取最新配置，保证开关改动即时生效
+            val config = CatConfig.load(this)
+            cachedConfig = config
 
             // 增量还原原始输入
             val stripped = reconstructUserText(text, config)

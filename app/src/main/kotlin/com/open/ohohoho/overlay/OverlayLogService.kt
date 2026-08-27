@@ -15,7 +15,10 @@ import android.os.Looper
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewGroup
 import android.view.WindowManager
+import android.widget.Button
+import android.widget.LinearLayout
 import android.widget.TextView
 import com.open.ohohoho.R
 import com.open.ohohoho.util.AppLog
@@ -44,6 +47,7 @@ class OverlayLogService : Service(), AppLog.Listener {
         startAsForeground()
         if (rootView == null) showOverlay()
         AppLog.register(this)
+        OverlayHelper.running = true
         return START_STICKY
     }
 
@@ -72,11 +76,38 @@ class OverlayLogService : Service(), AppLog.Listener {
         textView = TextView(this).apply {
             setTextColor(Color.WHITE)
             textSize = 11f
-            setBackgroundColor(Color.argb(170, 20, 20, 20))
             setPadding(16, 8, 16, 8)
             gravity = Gravity.START or Gravity.TOP
-            // 支持手势拖动
-            setOnTouchListener(dragTouchListener)
+        }
+
+        // 顶部标题栏 + 关闭按钮
+        val header = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(8, 2, 4, 2)
+        }
+        val title = TextView(this).apply {
+            text = "日志"
+            setTextColor(Color.rgb(255, 190, 120))
+            textSize = 12f
+        }
+        val close = Button(this).apply {
+            text = "✕"
+            setTextColor(Color.WHITE)
+            textSize = 12f
+            setBackgroundColor(Color.TRANSPARENT)
+            setPadding(16, 0, 16, 0)
+            setOnClickListener { stopSelf() }  // 关闭悬浮窗
+        }
+        header.addView(title, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        header.addView(close)
+
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Color.argb(170, 20, 20, 20))
+            addView(header)
+            addView(textView)
+            setOnTouchListener(dragTouchListener)  // 整个面板可拖动
         }
 
         val type = if (Build.VERSION.SDK_INT >= 26) {
@@ -99,9 +130,9 @@ class OverlayLogService : Service(), AppLog.Listener {
             y = 160
         }
 
-        rootView = textView
+        rootView = container
         try {
-            wm.addView(textView, params)
+            wm.addView(container, params)
         } catch (e: Exception) {
             AppLog.log("悬浮窗添加失败: ${e.message}")
             stopSelf()
@@ -142,6 +173,7 @@ class OverlayLogService : Service(), AppLog.Listener {
 
     override fun onDestroy() {
         AppLog.unregister(this)
+        OverlayHelper.running = false
         try {
             rootView?.let { wm.removeView(it) }
         } catch (_: Exception) {}

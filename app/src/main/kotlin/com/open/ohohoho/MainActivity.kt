@@ -151,12 +151,18 @@ class MainActivity : AppCompatActivity() {
         rbPunctuation = CheckBox(this).apply {
             text = "标点触发 (推荐)"
             isChecked = config.processingMode == CatConfig.MODE_PUNCTUATION
-            setOnCheckedChangeListener { _, checked -> if (checked) rbRealtime.isChecked = false }
+            setOnCheckedChangeListener { _, checked ->
+                if (checked) rbRealtime.isChecked = false
+                persistConfig()
+            }
         }
         rbRealtime = CheckBox(this).apply {
             text = "实时处理"
             isChecked = config.processingMode == CatConfig.MODE_REALTIME
-            setOnCheckedChangeListener { _, checked -> if (checked) rbPunctuation.isChecked = false }
+            setOnCheckedChangeListener { _, checked ->
+                if (checked) rbPunctuation.isChecked = false
+                persistConfig()
+            }
         }
         modeRow.addView(rbPunctuation)
         modeRow.addView(rbRealtime)
@@ -169,6 +175,10 @@ class MainActivity : AppCompatActivity() {
         cbWo = addCheckbox(root, "我 -> 我..我我", "替换所有'我'", config.enableWoToBenmiao)
         cbNi = addCheckbox(root, "你 -> 主..主人♥", "替换所有'你'", config.enableNiToZhuren)
         cbEmoticon = addCheckbox(root, "随机颜文字", "末尾添加随机猫咪颜文字", config.enableRandomEmoticon)
+        // 勾选即保存并立即生效
+        arrayOf(cbMeow, cbWo, cbNi, cbEmoticon).forEach { cb ->
+            cb.setOnCheckedChangeListener { _, _ -> persistConfig() }
+        }
 
         root.addView(divider())
         root.addView(sectionLabel("自定义颜文字"))
@@ -271,8 +281,14 @@ class MainActivity : AppCompatActivity() {
             )
             return
         }
-        OverlayHelper.ensureOverlayLog(this)
-        toast("已启动日志悬浮窗")
+        if (OverlayHelper.running) {
+            OverlayHelper.stopOverlayLog(this)
+            toast("已关闭日志悬浮窗")
+        } else {
+            OverlayHelper.ensureOverlayLog(this)
+            toast("已启动日志悬浮窗")
+        }
+        updateOverlayButton()
     }
 
     private fun confirmShizukuEnable() {
@@ -322,7 +338,8 @@ class MainActivity : AppCompatActivity() {
         } catch (_: Throwable) {}
     }
 
-    private fun saveConfig() {
+    /** 静默持久化当前配置（勾选框切换时即时调用）。 */
+    private fun persistConfig() {
         try {
             config.enableMeow = cbMeow.isChecked
             config.enableWoToBenmiao = cbWo.isChecked
@@ -333,11 +350,13 @@ class MainActivity : AppCompatActivity() {
             config.customEmoticons = etCustom.text.toString()
                 .split("\n").map { it.trim() }.filter { it.isNotEmpty() }.toTypedArray()
             config.save(this)
-            toast("设置已保存")
-            AppLog.log("设置已保存，mode=${config.processingMode}")
-        } catch (t: Throwable) {
-            toast("保存失败: ${t.message}")
-        }
+        } catch (_: Throwable) {}
+    }
+
+    private fun saveConfig() {
+        persistConfig()
+        toast("设置已保存")
+        AppLog.log("设置已保存，mode=${config.processingMode}")
     }
 
     private fun showTestDialog() {

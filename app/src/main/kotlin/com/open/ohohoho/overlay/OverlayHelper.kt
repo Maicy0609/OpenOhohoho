@@ -8,6 +8,10 @@ import com.open.ohohoho.util.AppLog
 /** 悬浮窗日志的启停助手。 */
 object OverlayHelper {
 
+    /** 当前悬浮窗日志服务是否在运行。 */
+    @Volatile
+    var running: Boolean = false
+
     /** 启动悬浮窗日志（仅在已授予悬浮窗权限时）。 */
     fun ensureOverlayLog(context: Context) {
         if (!Settings.canDrawOverlays(context)) {
