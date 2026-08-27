@@ -105,25 +105,19 @@ class OverlayLogService : Service(), AppLog.Listener {
 
     /** 拖动整个面板。 */
     private val dragTouchListener = View.OnTouchListener { v, event ->
-        val layoutParams = (v.layoutParams as WindowManager.LayoutParams)
-        val initialX: Int
-        val initialY: Int
-        val touchX: Float
-        val touchY: Float
+        val lp = (v.layoutParams as WindowManager.LayoutParams)
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
-                initialX = layoutParams.x
-                initialY = layoutParams.y
-                touchX = event.rawX
-                touchY = event.rawY
-                v.tag = DragState(initialX, initialY, touchX, touchY)
+                v.tag = DragState(lp.x, lp.y, event.rawX, event.rawY)
                 true
             }
             MotionEvent.ACTION_MOVE -> {
-                val s = v.tag as? DragState ?: return@setOnTouchListener true
-                layoutParams.x = s.initialX + (event.rawX - s.touchX).toInt()
-                layoutParams.y = s.initialY + (event.rawY - s.touchY).toInt()
-                try { wm.updateViewLayout(v, layoutParams) } catch (_: Exception) {}
+                val s = v.tag as? DragState
+                if (s != null) {
+                    lp.x = s.initialX + (event.rawX - s.touchX).toInt()
+                    lp.y = s.initialY + (event.rawY - s.touchY).toInt()
+                    try { wm.updateViewLayout(v, lp) } catch (_: Exception) {}
+                }
                 true
             }
             else -> false

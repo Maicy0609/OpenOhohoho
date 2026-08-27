@@ -12,6 +12,7 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.Gravity
+import android.view.View
 import android.view.ViewGroup
 import android.view.accessibility.AccessibilityManager
 import android.widget.Button
@@ -164,11 +165,12 @@ class MainActivity : AppCompatActivity() {
         }
         val cb = CheckBox(this).apply { isChecked = checked }
         row.addView(cb)
-        val text = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(12, 0, 0, 0) }
+        // 注意：避免命名 text，以免遮蔽 TextView.text 属性
+        val column = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(12, 0, 0, 0) }
         val t1 = TextView(this).apply { text = title; textSize = 15f; setTypeface(null, Typeface.BOLD) }
         val t2 = TextView(this).apply { text = desc; textSize = 12f; setTextColor(Color.GRAY) }
-        text.addView(t1); text.addView(t2)
-        row.addView(text, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        column.addView(t1); column.addView(t2)
+        row.addView(column, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         parent.addView(row)
         return cb
     }
