@@ -185,8 +185,11 @@ class MainActivity : AppCompatActivity() {
         setTextColor(Color.rgb(93, 64, 55)); setTypeface(null, Typeface.BOLD)
     }
     private fun infoText() = TextView(this).apply {
-        textSize = 13f; setPadding(8, 8, 8, 8)
-        setBackgroundColor(Color.LTGRAY)
+        textSize = 14f
+        setTextColor(Color.rgb(40, 40, 40))          // 深色文字，避免在浅灰底上发虚
+        setTypeface(null, Typeface.NORMAL)
+        setPadding(12, 10, 12, 10)
+        setBackgroundColor(Color.rgb(233, 233, 233))
     }
     private fun hint(s: String) = TextView(this).apply {
         text = s; textSize = 12f; setTextColor(Color.rgb(161, 127, 111))

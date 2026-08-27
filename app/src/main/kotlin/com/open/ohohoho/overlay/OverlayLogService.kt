@@ -5,6 +5,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.os.Build
@@ -58,7 +59,11 @@ class OverlayLogService : Service(), AppLog.Listener {
             .setSmallIcon(R.drawable.ic_stat_log)
             .setOngoing(true)
             .build()
-        startForeground(1, n)
+        if (Build.VERSION.SDK_INT >= 34) {
+            startForeground(1, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+        } else {
+            startForeground(1, n)
+        }
     }
 
     private fun showOverlay() {

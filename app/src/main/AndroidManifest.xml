@@ -5,6 +5,9 @@
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <!-- Android 13+ 通知权限 (前台服务通知) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- 前台服务：Android 14+ 必须声明 -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <!-- Shizuku 提权所需权限 -->
     <uses-permission android:name="moe.shizuku.manager.permission.API_V23" />
 
@@ -39,11 +42,16 @@
                 android:resource="@xml/accessibility_service_config" />
         </service>
 
-        <!-- 悬浮窗日志服务 -->
+        <!-- 悬浮窗日志服务（Android 14+ 前台服务需声明类型 specialUse） -->
         <service
             android:name=".overlay.OverlayLogService"
             android:exported="false"
-            android:label="@string/overlay_service_name" />
+            android:foregroundServiceType="specialUse"
+            android:label="@string/overlay_service_name">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="debug_log_overlay" />
+        </service>
 
         <!-- Shizuku 必需：用于获取 binder（配合 dev.rikka.shizuku:provider） -->
         <provider
