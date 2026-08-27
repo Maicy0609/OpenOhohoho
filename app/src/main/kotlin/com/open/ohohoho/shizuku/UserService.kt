@@ -17,8 +17,7 @@ import java.io.InputStreamReader
 @Keep
 class UserService : IUserService.Stub() {
 
-    /** 必需的无参构造。 */
-    constructor() : super()
+    // 无参构造由类头 `: IUserService.Stub()` 自动提供（Shizuku 反射必需）
 
     /** v13+ 可选：带 Context 的构造。 */
     @Keep
