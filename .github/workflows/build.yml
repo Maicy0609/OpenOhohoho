@@ -10,7 +10,7 @@ on:
 
 jobs:
   build:
-    name: Build Debug & Release APK
+    name: Build Signed Release APK
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -25,17 +25,29 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
+      # 从 Secret 还原签名 keystore（不提交到仓库）
+      # 注意：build.gradle.kts 用 file() 相对 app 模块解析，故写入 app/keystore/
+      - name: Restore signing keystore
+        run: |
+          mkdir -p app/keystore
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > app/keystore/release.jks
+          ls -la app/keystore/
+
       # 仓库未提交 gradle wrapper jar，运行时生成
       - name: Generate Gradle wrapper
         run: gradle wrapper --gradle-version 8.7
 
       - name: Build APK
-        run: ./gradlew assembleDebug assembleRelease --stacktrace
+        run: ./gradlew assembleRelease --stacktrace
+        env:
+          KEYSTORE_FILE: ${{ github.workspace }}/app/keystore/release.jks
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
-      - name: Upload APK artifacts
+      - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
           name: open-ohohoho-apk
           path: |
-            app/build/outputs/apk/debug/*.apk
             app/build/outputs/apk/release/*.apk

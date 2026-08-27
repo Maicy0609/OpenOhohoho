@@ -65,7 +65,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     // ---------- UI 构建 ----------
-    private fun buildUi(): LinearLayout {
+    private fun buildUi(): ScrollView {
         val scroll = ScrollView(this)
         scroll.layoutParams = ViewGroup.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
@@ -155,7 +155,8 @@ class MainActivity : AppCompatActivity() {
         root.addView(btn("测试当前配置") { showTestDialog() })
         root.addView(hint("修改后请点击保存，服务下次触发时自动加载"))
 
-        return root
+        // 必须返回 scroll（root 已挂载为 scroll 的子视图），否则 setContentView 会因已有父布局崩溃
+        return scroll
     }
 
     private fun addCheckbox(parent: LinearLayout, title: String, desc: String, checked: Boolean): CheckBox {

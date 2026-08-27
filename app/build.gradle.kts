@@ -16,13 +16,30 @@ android {
         versionName = "1.0"
     }
 
+    // 签名信息从环境变量读取（CI 由 GitHub Secrets 注入），本地无环境变量时跳过签名
+    val keystorePassword = System.getenv("KEYSTORE_PASSWORD")
+    signingConfigs {
+        create("release") {
+            if (keystorePassword != null) {
+                storeFile = file(System.getenv("KEYSTORE_FILE") ?: "keystore/release.jks")
+                storePassword = keystorePassword
+                keyAlias = System.getenv("KEY_ALIAS")
+                keyPassword = System.getenv("KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true          // 代码压缩/混淆
+            isShrinkResources = true        // 资源压缩
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            if (keystorePassword != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 
