@@ -129,7 +129,8 @@ object ShizukuManager {
      */
     fun enableAccessibilityService(context: Context, callback: (String) -> Unit) {
         val cn = ComponentName(context, QQAccessibilityService::class.java)
-        val value = "${context.packageName}/${cn.flattenToShortString()}"
+        // 必须用 flattenToString()：enabled_accessibility_services 期望 "包名/完整类名"
+        val value = cn.flattenToString()
         val cmd =
             "settings put secure enabled_accessibility_services \"$value\"; " +
                 "settings put secure accessibility_enabled 1"

@@ -11,7 +11,7 @@ data class CatConfig(
     var enableWoToBenmiao: Boolean = true,   // 我 -> 我..我我
     var enableNiToZhuren: Boolean = false,   // 你 -> 主..主人♥
     var enableRandomEmoticon: Boolean = true,// 末尾追加随机猫咪颜文字
-    var processingMode: String = MODE_PUNCTUATION,
+    var processingMode: String = MODE_REALTIME, // 默认实时修改
     var customEmoticons: Array<String> = emptyArray(),
 ) {
 
@@ -42,8 +42,8 @@ data class CatConfig(
                 enableWoToBenmiao = sp.getBoolean("enable_wo", true),
                 enableNiToZhuren = sp.getBoolean("enable_ni", false),
                 enableRandomEmoticon = sp.getBoolean("enable_emoticon", true),
-                processingMode = sp.getString("processing_mode", MODE_PUNCTUATION)
-                    ?: MODE_PUNCTUATION,
+                processingMode = sp.getString("processing_mode", MODE_REALTIME)
+                    ?: MODE_REALTIME,
                 customEmoticons = sp.getString("custom_emoticons", "")
                     ?.split("\n")
                     ?.map { it.trim() }

@@ -95,7 +95,7 @@ class QQAccessibilityService : AccessibilityService() {
                     source.recycle()
                     if (id == ID_SEND) {
                         AppLog.log("点击发送，兜底处理")
-                        doProcess(realtime = true)
+                        doProcess(isFinal = true)
                     }
                 }
             }
@@ -103,7 +103,7 @@ class QQAccessibilityService : AccessibilityService() {
             TYPE_VIEW_TEXT_CHANGED -> {
                 val mode = cachedConfig?.processingMode ?: CatConfig.MODE_PUNCTUATION
                 if (mode == CatConfig.MODE_REALTIME) {
-                    doProcess(realtime = true)
+                    doProcess(isFinal = false)
                 } else {
                     // 标点触发模式：仅当输入以标点结尾时处理
                     val root = rootInActiveWindow ?: return
@@ -116,7 +116,7 @@ class QQAccessibilityService : AccessibilityService() {
                     if (trimmed.isEmpty()) return
                     if (isPunctuationEnding(trimmed)) {
                         AppLog.log("标点触发: $trimmed")
-                        doProcess(realtime = false)
+                        doProcess(isFinal = false)
                     }
                 }
             }
@@ -127,7 +127,7 @@ class QQAccessibilityService : AccessibilityService() {
         processing = false
     }
 
-    private fun doProcess(realtime: Boolean) {
+    private fun doProcess(isFinal: Boolean) {
         if (processing) return
         processing = true
         try {
@@ -169,8 +169,9 @@ class QQAccessibilityService : AccessibilityService() {
 
             // 生成目标文本
             var cfgForProcess = config
-            if (!realtime && config.enableRandomEmoticon) {
-                // 非实时模式下避免反复追加不同颜文字，克隆一份关闭随机颜文字
+            // 打字过程中保持确定性（临时关闭随机颜文字），避免写回触发的事件反复重写/闪烁；
+            // 仅在最终（点击发送）时附加随机颜文字
+            if (!isFinal && config.enableRandomEmoticon) {
                 cfgForProcess = config.copy(enableRandomEmoticon = false)
             }
             val target = TextProcessor.process(stripped, cfgForProcess)
