@@ -44,7 +44,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var cbWo: CheckBox
     private lateinit var cbNi: CheckBox
     private lateinit var cbEmoticon: CheckBox
+    private lateinit var cbAutoEnable: CheckBox
     private lateinit var etCustom: EditText
+
+    private fun autoEnablePrefs() =
+        getSharedPreferences("auto_enable", Context.MODE_PRIVATE)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -62,6 +66,24 @@ class MainActivity : AppCompatActivity() {
         updateServiceStatus()
         updateShizukuStatus()
         updateOverlayButton()
+        maybeAutoEnableAccessibility()
+    }
+
+    /** 若开启了"启动时自动开启"，且无障碍未开启、Shizuku 已授权，则自动补开。 */
+    private fun maybeAutoEnableAccessibility() {
+        if (!autoEnablePrefs().getBoolean("enabled", false)) return
+        if (isAccessibilityServiceEnabled()) return
+        if (!ShizukuManager.isGranted()) return
+        ShizukuManager.ensureAccessibilityService(this) { ok ->
+            runOnUiThread {
+                if (ok) {
+                    toast("已自动开启无障碍服务")
+                    updateServiceStatus()
+                } else {
+                    toast("自动开启失败，请手动开启")
+                }
+            }
+        }
     }
 
     // ---------- UI 构建 ----------
@@ -109,6 +131,16 @@ class MainActivity : AppCompatActivity() {
         root.addView(btn("通过 Shizuku 自动启用无障碍") {
             confirmShizukuEnable()
         })
+
+        // 启动时自动检测并（通过 Shizuku）补开无障碍
+        cbAutoEnable = CheckBox(this).apply {
+            text = "启动时自动检测并开启无障碍(Shizuku)"
+            isChecked = autoEnablePrefs().getBoolean("enabled", false)
+            setOnCheckedChangeListener { _, checked ->
+                autoEnablePrefs().edit().putBoolean("enabled", checked).apply()
+            }
+        }
+        root.addView(cbAutoEnable)
 
         root.addView(divider())
         root.addView(sectionLabel("处理模式"))

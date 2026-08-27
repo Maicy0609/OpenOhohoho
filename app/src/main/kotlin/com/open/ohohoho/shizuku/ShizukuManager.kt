@@ -1,11 +1,13 @@
 package com.open.ohohoho.shizuku
 
+import android.accessibilityservice.AccessibilityServiceInfo
 import android.app.Activity
 import android.content.ComponentName
 import android.content.Context
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.os.IBinder
+import android.view.accessibility.AccessibilityManager
 import com.open.ohohoho.QQAccessibilityService
 import com.open.ohohoho.util.AppLog
 import rikka.shizuku.Shizuku
@@ -134,6 +136,37 @@ object ShizukuManager {
         exec(cmd) { result ->
             AppLog.log("Shizuku 启用无障碍: $result")
             callback(result)
+        }
+    }
+
+    /** 判断本应用的无障碍服务当前是否已开启。 */
+    fun isAccessibilityServiceEnabled(context: Context): Boolean {
+        return try {
+            val am = context.getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager
+                ?: return false
+            val expected = ComponentName(context, QQAccessibilityService::class.java)
+            am.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
+                .any { it.resolveInfo?.serviceInfo?.componentName == expected }
+        } catch (t: Throwable) {
+            false
+        }
+    }
+
+    /**
+     * 确保无障碍服务开启：已开启则直接成功；未开启且 Shizuku 已授权则自动补开。
+     * 用于"启动时自动检测并开启"。
+     */
+    fun ensureAccessibilityService(context: Context, callback: (Boolean) -> Unit) {
+        if (isAccessibilityServiceEnabled(context)) {
+            callback(true)
+            return
+        }
+        if (!isGranted()) {
+            callback(false)
+            return
+        }
+        enableAccessibilityService(context) { result ->
+            callback(result.contains("exit=0"))
         }
     }
 }

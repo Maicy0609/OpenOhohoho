@@ -22,7 +22,14 @@ class QQAccessibilityService : AccessibilityService() {
     companion object {
         const val ID_INPUT = "com.tencent.mobileqq:id/input"
         const val ID_SEND = "com.tencent.mobileqq:id/send_btn"
-        private val QQ_PACKAGES = setOf("com.tencent.mobileqq", "com.tencent.mobileqqi")
+
+        // QQ 家族常见包名（扩展以提升识别正确率）
+        private val QQ_PACKAGES = setOf(
+            "com.tencent.mobileqq",   // QQ 正式版
+            "com.tencent.mobileqqi",  // QQ 国际版
+            "com.tencent.qqlite",     // QQ 轻聊版
+            "com.tencent.tim",        // TIM
+        )
 
         // 事件类型常量
         private const val TYPE_WINDOW_STATE_CHANGED = 0x00000020
@@ -125,6 +132,11 @@ class QQAccessibilityService : AccessibilityService() {
         processing = true
         try {
             val root = rootInActiveWindow ?: return
+            // 双保险：确认当前活动窗口确实是 QQ，避免误写其它应用
+            if (root.packageName?.toString() !in QQ_PACKAGES) {
+                root.recycle()
+                return
+            }
             val node = findNodeById(root, ID_INPUT) ?: findEditable(root)
             root.recycle()
             if (node == null) return
@@ -236,9 +248,9 @@ class QQAccessibilityService : AccessibilityService() {
         return null
     }
 
-    /** 查找第一个可编辑节点。 */
+    /** 查找第一个「可见」的可编辑节点（避免命中隐藏控件 / 搜索框等）。 */
     private fun findEditable(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
-        if (root.isEditable) return AccessibilityNodeInfo.obtain(root)
+        if (root.isEditable && root.isVisibleToUser) return AccessibilityNodeInfo.obtain(root)
         for (i in 0 until root.childCount) {
             val child = root.getChild(i) ?: continue
             val found = findEditable(child)
