@@ -144,9 +144,12 @@ object ShizukuManager {
         return try {
             val am = context.getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager
                 ?: return false
-            val expected = ComponentName(context, QQAccessibilityService::class.java)
+            val cls = QQAccessibilityService::class.java.name
             am.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
-                .any { it.resolveInfo?.serviceInfo?.componentName == expected }
+                .any { s ->
+                    val si = s.resolveInfo?.serviceInfo ?: return@any false
+                    si.packageName == context.packageName && si.name == cls
+                }
         } catch (t: Throwable) {
             false
         }
