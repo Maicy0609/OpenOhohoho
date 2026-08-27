@@ -1,6 +1,5 @@
 package com.open.ohohoho.shizuku
 
-import android.content.Context
 import androidx.annotation.Keep
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -18,10 +17,6 @@ import java.io.InputStreamReader
 class UserService : IUserService.Stub() {
 
     // 无参构造由类头 `: IUserService.Stub()` 自动提供（Shizuku 反射必需）
-
-    /** v13+ 可选：带 Context 的构造。 */
-    @Keep
-    constructor(context: Context) : this()
 
     /** 以 root/shell 身份执行 shell 命令。 */
     override fun exec(command: String): String {
