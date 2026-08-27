@@ -2,6 +2,7 @@ package com.open.ohohoho
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
+import android.content.Context
 import android.os.Bundle
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
@@ -96,6 +97,8 @@ class QQAccessibilityService : AccessibilityService() {
                 lastSet = ""
                 lastWriteTime = 0L
                 cachedConfig = CatConfig.load(this)
+                // 调试开关开启时，把当前窗口所有可编辑节点 id 打到悬浮窗日志
+                if (debugDumpEnabled()) dumpEditableNodes()
             }
 
             TYPE_VIEW_CLICKED -> {
@@ -258,6 +261,42 @@ class QQAccessibilityService : AccessibilityService() {
             if (found != null) return found
         }
         return null
+    }
+
+    /** 调试开关：是否抓取界面可编辑节点。 */
+    private fun debugDumpEnabled(): Boolean = try {
+        getSharedPreferences("debug", MODE_PRIVATE).getBoolean("dump", false)
+    } catch (t: Throwable) {
+        false
+    }
+
+    /** 调试：打印当前窗口所有可编辑/EditText 节点的 className、resource-id、bounds。 */
+    private fun dumpEditableNodes() {
+        val root = rootInActiveWindow ?: run {
+            AppLog.log("UI抓取: rootInActiveWindow 为空（微信可能屏蔽了无障碍树）")
+            return
+        }
+        try {
+            val sb = StringBuilder()
+            collectEditable(root, sb, 0)
+            val out = sb.toString().ifEmpty { "未找到可编辑/EditText 节点" }
+            AppLog.log("UI节点: $out")
+        } finally {
+            root.recycle()
+        }
+    }
+
+    private fun collectEditable(node: AccessibilityNodeInfo, sb: StringBuilder, depth: Int) {
+        val cls = node.className?.toString() ?: ""
+        val id = node.viewIdResourceName ?: ""
+        if (node.isEditable || cls.contains("EditText")) {
+            sb.append("\n[$depth] cls=$cls id=$id bounds=${node.boundsInScreen}")
+        }
+        for (i in 0 until node.childCount) {
+            val c = node.getChild(i) ?: continue
+            collectEditable(c, sb, depth + 1)
+            c.recycle()
+        }
     }
 
     /** 定位聊天输入框：优先按已知 id 精确匹配（QQ/微信），兜底找第一个可见可编辑节点。 */

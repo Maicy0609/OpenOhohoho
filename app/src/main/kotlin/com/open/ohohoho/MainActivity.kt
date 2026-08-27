@@ -142,6 +142,17 @@ class MainActivity : AppCompatActivity() {
         }
         root.addView(cbAutoEnable)
 
+        // 调试：抓取当前界面可编辑节点 id（打开后进微信/QQ聊天，节点会打到悬浮窗日志）
+        CheckBox(this).apply {
+            text = "调试：抓取界面输入框节点"
+            isChecked = getSharedPreferences("debug", Context.MODE_PRIVATE)
+                .getBoolean("dump", false)
+            setOnCheckedChangeListener { _, checked ->
+                getSharedPreferences("debug", Context.MODE_PRIVATE)
+                    .edit().putBoolean("dump", checked).apply()
+            }
+        }.also { root.addView(it) }
+
         root.addView(divider())
         root.addView(sectionLabel("处理模式"))
         val modeRow = LinearLayout(this).apply {
