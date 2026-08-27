@@ -290,7 +290,9 @@ class QQAccessibilityService : AccessibilityService() {
         val cls = node.className?.toString() ?: ""
         val id = node.viewIdResourceName ?: ""
         if (node.isEditable || cls.contains("EditText")) {
-            sb.append("\n[$depth] cls=$cls id=$id bounds=${node.boundsInScreen}")
+            val rect = android.graphics.Rect()
+            node.getBoundsInScreen(rect)
+            sb.append("\n[$depth] cls=$cls id=$id bounds=$rect")
         }
         for (i in 0 until node.childCount) {
             val c = node.getChild(i) ?: continue
