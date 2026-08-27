@@ -20,15 +20,26 @@ import com.open.ohohoho.util.AppLog
 class QQAccessibilityService : AccessibilityService() {
 
     companion object {
-        const val ID_INPUT = "com.tencent.mobileqq:id/input"
-        const val ID_SEND = "com.tencent.mobileqq:id/send_btn"
+        // 输入框资源 id 候选（微信 id 随版本变化，主要靠 findEditable 兜底）
+        private val INPUT_IDS = setOf(
+            "com.tencent.mobileqq:id/input", // QQ 输入框
+            "com.tencent.mm:id/auj",         // 微信输入框(常见 id)
+            "com.tencent.mm:id/b3c",         // 微信输入框(常见 id)
+        )
 
-        // QQ 家族常见包名（扩展以提升识别正确率）
-        private val QQ_PACKAGES = setOf(
+        // 发送按钮资源 id 候选
+        private val SEND_IDS = setOf(
+            "com.tencent.mobileqq:id/send_btn", // QQ 发送按钮
+            "com.tencent.mm:id/ai7",            // 微信发送按钮(常见 id)
+        )
+
+        // 目标应用包名：QQ 家族 + 微信
+        private val TARGET_PACKAGES = setOf(
             "com.tencent.mobileqq",   // QQ 正式版
             "com.tencent.mobileqqi",  // QQ 国际版
             "com.tencent.qqlite",     // QQ 轻聊版
             "com.tencent.tim",        // TIM
+            "com.tencent.mm",         // 微信
         )
 
         // 事件类型常量
@@ -60,12 +71,12 @@ class QQAccessibilityService : AccessibilityService() {
                 AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS or
                 AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
             notificationTimeout = 50
-            packageNames = QQ_PACKAGES.toTypedArray()
+            packageNames = TARGET_PACKAGES.toTypedArray()
         }
         setServiceInfo(info)
 
         cachedConfig = CatConfig.load(this)
-        AppLog.log("无障碍服务已连接，包名=${QQ_PACKAGES.joinToString()}")
+        AppLog.log("无障碍服务已连接，包名=${TARGET_PACKAGES.joinToString()}")
 
         // 打开悬浮窗日志，方便调试（若用户已授予悬浮窗权限）
         OverlayHelper.ensureOverlayLog(this)
@@ -75,7 +86,7 @@ class QQAccessibilityService : AccessibilityService() {
         if (event == null) return
 
         val pkg = event.packageName?.toString() ?: ""
-        if (pkg !in QQ_PACKAGES) return
+        if (pkg !in TARGET_PACKAGES) return
 
         when (event.eventType) {
             TYPE_WINDOW_STATE_CHANGED -> {
@@ -93,7 +104,7 @@ class QQAccessibilityService : AccessibilityService() {
                 if (source != null) {
                     val id = source.viewIdResourceName
                     source.recycle()
-                    if (id == ID_SEND) {
+                    if (id in SEND_IDS) {
                         AppLog.log("点击发送，兜底处理")
                         doProcess(isFinal = true)
                     }
@@ -109,7 +120,7 @@ class QQAccessibilityService : AccessibilityService() {
                 } else {
                     // 标点触发模式：仅当输入以标点结尾时处理
                     val root = rootInActiveWindow ?: return
-                    val input = findNodeById(root, ID_INPUT) ?: findEditable(root)
+                    val input = findInputNode(root)
                     root.recycle()
                     val text = input?.text?.toString()
                     input?.recycle()
@@ -135,11 +146,11 @@ class QQAccessibilityService : AccessibilityService() {
         try {
             val root = rootInActiveWindow ?: return
             // 双保险：确认当前活动窗口确实是 QQ，避免误写其它应用
-            if (root.packageName?.toString() !in QQ_PACKAGES) {
+            if (root.packageName?.toString() !in TARGET_PACKAGES) {
                 root.recycle()
                 return
             }
-            val node = findNodeById(root, ID_INPUT) ?: findEditable(root)
+            val node = findInputNode(root)
             root.recycle()
             if (node == null) return
 
@@ -247,6 +258,14 @@ class QQAccessibilityService : AccessibilityService() {
             if (found != null) return found
         }
         return null
+    }
+
+    /** 定位聊天输入框：优先按已知 id 精确匹配（QQ/微信），兜底找第一个可见可编辑节点。 */
+    private fun findInputNode(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
+        for (id in INPUT_IDS) {
+            findNodeById(root, id)?.let { return it }
+        }
+        return findEditable(root)
     }
 
     /** 查找第一个「可见」的可编辑节点（避免命中隐藏控件 / 搜索框等）。 */
