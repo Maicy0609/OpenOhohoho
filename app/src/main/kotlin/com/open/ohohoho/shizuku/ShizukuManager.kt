@@ -131,9 +131,16 @@ object ShizukuManager {
         val cn = ComponentName(context, QQAccessibilityService::class.java)
         // 必须用 flattenToString()：enabled_accessibility_services 期望 "包名/完整类名"
         val value = cn.flattenToString()
-        val cmd =
-            "settings put secure enabled_accessibility_services \"$value\"; " +
-                "settings put secure accessibility_enabled 1"
+        // 追加模式：先读当前已启用的无障碍服务列表，再追加本服务，
+        // 避免 settings put 整体覆盖导致其它无障碍服务被关闭/不稳定
+        val cmd = """SERVICE='$value'
+CUR=\$(settings get secure enabled_accessibility_services)
+case "\$CUR" in
+  *"\$SERVICE"*) : ;;
+  null|"") settings put secure enabled_accessibility_services "\$SERVICE" ;;
+  *) settings put secure enabled_accessibility_services "\$CUR:\$SERVICE" ;;
+esac
+settings put secure accessibility_enabled 1"""
         exec(cmd) { result ->
             AppLog.log("Shizuku 启用无障碍: $result")
             callback(result)

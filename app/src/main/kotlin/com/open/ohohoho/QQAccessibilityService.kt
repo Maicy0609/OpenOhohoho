@@ -2,6 +2,8 @@ package com.open.ohohoho
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.os.Bundle
 import android.util.Log
@@ -47,6 +49,7 @@ class QQAccessibilityService : AccessibilityService() {
         private const val TYPE_WINDOW_STATE_CHANGED = 0x00000020
         private const val TYPE_VIEW_CLICKED = 0x00000001
         private const val TYPE_VIEW_TEXT_CHANGED = 0x00000010
+        private const val TYPE_WINDOW_CONTENT_CHANGED = 0x00000800
 
         // performAction 常量
         private const val ACTION_SET_TEXT = 0x00200000
@@ -66,7 +69,8 @@ class QQAccessibilityService : AccessibilityService() {
         super.onServiceConnected()
 
         val info = AccessibilityServiceInfo().apply {
-            eventTypes = TYPE_WINDOW_STATE_CHANGED or TYPE_VIEW_CLICKED or TYPE_VIEW_TEXT_CHANGED
+            eventTypes = TYPE_WINDOW_STATE_CHANGED or TYPE_VIEW_CLICKED or
+                TYPE_VIEW_TEXT_CHANGED or TYPE_WINDOW_CONTENT_CHANGED
             feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
             flags = 0x1 or // FLAG_DEFAULT
                 AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS or
@@ -114,32 +118,35 @@ class QQAccessibilityService : AccessibilityService() {
                 }
             }
 
-            TYPE_VIEW_TEXT_CHANGED -> {
-                // 每次重新加载，让功能开关/处理模式改动立即生效
-                cachedConfig = CatConfig.load(this)
-                val mode = cachedConfig?.processingMode ?: CatConfig.MODE_PUNCTUATION
-                // 事件的 source 就是输入框节点本身（对微信尤其可靠）
-                val source = event.source
-                if (mode == CatConfig.MODE_REALTIME) {
-                    doProcess(isFinal = false, source = source)
-                } else {
-                    // 标点触发模式：仅当输入以标点结尾时处理
-                    val text = source?.text?.toString()
-                    if (text != null) {
-                        val trimmed = text.trim()
-                        if (trimmed.isNotEmpty() && isPunctuationEnding(trimmed)) {
-                            AppLog.log("标点触发: $trimmed")
-                            doProcess(isFinal = false, source = source)
-                        }
-                    }
-                }
-                source?.recycle()
-            }
+            TYPE_VIEW_TEXT_CHANGED, TYPE_WINDOW_CONTENT_CHANGED -> handleInputChange(event)
         }
     }
 
     override fun onInterrupt() {
         processing = false
+    }
+
+    /** 处理输入变化事件（TYPE_VIEW_TEXT_CHANGED / TYPE_WINDOW_CONTENT_CHANGED）。 */
+    private fun handleInputChange(event: AccessibilityEvent) {
+        // 每次重新加载，让功能开关/处理模式改动立即生效
+        cachedConfig = CatConfig.load(this)
+        val mode = cachedConfig?.processingMode ?: CatConfig.MODE_PUNCTUATION
+        // 事件的 source 就是输入框节点本身（对微信尤其可靠）
+        val source = event.source
+        if (mode == CatConfig.MODE_REALTIME) {
+            doProcess(isFinal = false, source = source)
+        } else {
+            // 标点触发模式：仅当输入以标点结尾时处理
+            val text = source?.text?.toString()
+            if (text != null) {
+                val trimmed = text.trim()
+                if (trimmed.isNotEmpty() && isPunctuationEnding(trimmed)) {
+                    AppLog.log("标点触发: $trimmed")
+                    doProcess(isFinal = false, source = source)
+                }
+            }
+        }
+        source?.recycle()
     }
 
     private fun doProcess(isFinal: Boolean, source: AccessibilityNodeInfo? = null) {
@@ -242,18 +249,28 @@ class QQAccessibilityService : AccessibilityService() {
         return c in "，。！!？? "
     }
 
-    /** 通过无障碍 action 写入文本并设置光标到末尾。 */
+    /** 通过无障碍 action 写入文本并设置光标到末尾；失败则用剪贴板粘贴兜底。 */
     private fun setText(node: AccessibilityNodeInfo, text: String): Boolean {
+        // 方法1：ACTION_SET_TEXT
         val setBundle = Bundle().apply {
             putCharSequence(ARG_SET_TEXT, text)
         }
-        if (!node.performAction(ACTION_SET_TEXT, setBundle)) return false
-
-        val selBundle = Bundle().apply {
-            putInt(ARG_SEL_START, text.length)
-            putInt(ARG_SEL_END, text.length)
+        if (node.performAction(ACTION_SET_TEXT, setBundle)) {
+            val selBundle = Bundle().apply {
+                putInt(ARG_SEL_START, text.length)
+                putInt(ARG_SEL_END, text.length)
+            }
+            node.performAction(ACTION_SET_SELECTION, selBundle)
+            return true
         }
-        return node.performAction(ACTION_SET_SELECTION, selBundle)
+        // 方法2：剪贴板 + ACTION_PASTE（部分微信版本不响应 SET_TEXT）
+        return try {
+            val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            cm.setPrimaryClip(ClipData.newPlainText("ohoho", text))
+            node.performAction(AccessibilityNodeInfo.ACTION_PASTE)
+        } catch (t: Throwable) {
+            false
+        }
     }
 
     /** 深度优先按 viewId 查找节点。 */
@@ -275,34 +292,33 @@ class QQAccessibilityService : AccessibilityService() {
         false
     }
 
-    /** 调试：打印当前窗口所有可编辑/EditText 节点的 className、resource-id、bounds。 */
+    /** 调试：打印当前窗口整棵 UI 树（最多 80 个节点），用于诊断微信/QQ 暴露了哪些节点。 */
     private fun dumpEditableNodes() {
         val root = rootInActiveWindow ?: run {
-            AppLog.log("UI抓取: rootInActiveWindow 为空（微信可能屏蔽了无障碍树）")
+            AppLog.log("UI抓取: rootInActiveWindow 为空（窗口内容未暴露给无障碍）")
             return
         }
         try {
             val sb = StringBuilder()
-            collectEditable(root, sb, 0)
-            val out = sb.toString().ifEmpty { "未找到可编辑/EditText 节点" }
-            AppLog.log("UI节点: $out")
+            var n = 0
+            fun walk(node: AccessibilityNodeInfo, depth: Int) {
+                if (n > 80) return
+                val cls = node.className?.toString() ?: ""
+                val id = node.viewIdResourceName ?: ""
+                val editable = if (node.isEditable) " [可编辑]" else ""
+                val txt = node.text?.toString()?.take(24) ?: ""
+                sb.append("\n[d$depth] cls=$cls id=$id$editable txt=\"$txt\"")
+                n++
+                for (i in 0 until node.childCount) {
+                    val c = node.getChild(i) ?: continue
+                    walk(c, depth + 1)
+                    c.recycle()
+                }
+            }
+            walk(root, 0)
+            AppLog.log("UI树($n 节点): $sb")
         } finally {
             root.recycle()
-        }
-    }
-
-    private fun collectEditable(node: AccessibilityNodeInfo, sb: StringBuilder, depth: Int) {
-        val cls = node.className?.toString() ?: ""
-        val id = node.viewIdResourceName ?: ""
-        if (node.isEditable || cls.contains("EditText")) {
-            val rect = android.graphics.Rect()
-            node.getBoundsInScreen(rect)
-            sb.append("\n[$depth] cls=$cls id=$id bounds=$rect")
-        }
-        for (i in 0 until node.childCount) {
-            val c = node.getChild(i) ?: continue
-            collectEditable(c, sb, depth + 1)
-            c.recycle()
         }
     }
 
