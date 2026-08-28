@@ -118,23 +118,22 @@ class QQAccessibilityService : AccessibilityService() {
                 // 每次重新加载，让功能开关/处理模式改动立即生效
                 cachedConfig = CatConfig.load(this)
                 val mode = cachedConfig?.processingMode ?: CatConfig.MODE_PUNCTUATION
+                // 事件的 source 就是输入框节点本身（对微信尤其可靠）
+                val source = event.source
                 if (mode == CatConfig.MODE_REALTIME) {
-                    doProcess(isFinal = false)
+                    doProcess(isFinal = false, source = source)
                 } else {
                     // 标点触发模式：仅当输入以标点结尾时处理
-                    val root = rootInActiveWindow ?: return
-                    val input = findInputNode(root)
-                    root.recycle()
-                    val text = input?.text?.toString()
-                    input?.recycle()
-                    if (text.isNullOrEmpty()) return
-                    val trimmed = text.trim()
-                    if (trimmed.isEmpty()) return
-                    if (isPunctuationEnding(trimmed)) {
-                        AppLog.log("标点触发: $trimmed")
-                        doProcess(isFinal = false)
+                    val text = source?.text?.toString()
+                    if (text != null) {
+                        val trimmed = text.trim()
+                        if (trimmed.isNotEmpty() && isPunctuationEnding(trimmed)) {
+                            AppLog.log("标点触发: $trimmed")
+                            doProcess(isFinal = false, source = source)
+                        }
                     }
                 }
+                source?.recycle()
             }
         }
     }
@@ -143,17 +142,23 @@ class QQAccessibilityService : AccessibilityService() {
         processing = false
     }
 
-    private fun doProcess(isFinal: Boolean) {
+    private fun doProcess(isFinal: Boolean, source: AccessibilityNodeInfo? = null) {
         if (processing) return
         processing = true
         try {
             val root = rootInActiveWindow ?: return
-            // 双保险：确认当前活动窗口确实是 QQ，避免误写其它应用
+            // 双保险：确认当前活动窗口确实是目标应用，避免误写其它应用
             if (root.packageName?.toString() !in TARGET_PACKAGES) {
                 root.recycle()
                 return
             }
-            val node = findInputNode(root)
+            // 优先使用事件源节点（打字事件的 source 就是输入框本身，微信最可靠）；
+            // 否则回退到在根节点上查找输入框
+            val node = if (source != null && (source.isEditable || source.isFocused)) {
+                AccessibilityNodeInfo.obtain(source)
+            } else {
+                findInputNode(root)
+            }
             root.recycle()
             if (node == null) return
 
