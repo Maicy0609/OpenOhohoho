@@ -19,7 +19,9 @@ import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.ArrayAdapter
 import android.widget.ScrollView
+import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -27,6 +29,7 @@ import androidx.appcompat.app.AppCompatActivity
 import com.open.ohohoho.overlay.OverlayHelper
 import com.open.ohohoho.shizuku.ShizukuManager
 import com.open.ohohoho.util.AppLog
+import com.open.ohohoho.util.RuleManager
 import android.Manifest
 
 class MainActivity : AppCompatActivity() {
@@ -46,6 +49,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var cbEmoticon: CheckBox
     private lateinit var cbAutoEnable: CheckBox
     private lateinit var etCustom: EditText
+    private lateinit var etRules: EditText
+    private lateinit var ruleSpinner: Spinner
+    private val ruleSets = mutableListOf<RuleManager.RuleSet>()
+    private var ruleAdapter: ArrayAdapter<String>? = null
 
     private fun autoEnablePrefs() =
         getSharedPreferences("auto_enable", Context.MODE_PRIVATE)
@@ -204,6 +211,32 @@ class MainActivity : AppCompatActivity() {
         root.addView(etCustom, matchParams())
 
         root.addView(divider())
+        root.addView(sectionLabel("自定义替换规则"))
+        root.addView(hint("每行一个，格式：原词=替换词，例如：\n我=本喵\n你=主人\n呢=喵"))
+        etRules = EditText(this).apply {
+            setHint("我=本喵\n你=主人")
+            setLines(6)
+            minLines = 6
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
+            config.replacementRules.joinToString("\n") { "${it.first}=${it.second}" }
+                .let { if (it.isNotEmpty()) setText(it) }
+        }
+        root.addView(etRules, matchParams())
+
+        root.addView(divider())
+        root.addView(sectionLabel("在线规则集"))
+        root.addView(hint("从 GitHub 仓库 rules/ 目录拉取，一键切换"))
+        val ruleRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, 4, 0, 4)
+        }
+        ruleSpinner = Spinner(this)
+        ruleRow.addView(ruleSpinner, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        ruleRow.addView(btn("刷新") { refreshRuleSets() })
+        ruleRow.addView(btn("应用") { applySelectedRuleSet() })
+        root.addView(ruleRow)
+
+        root.addView(divider())
         root.addView(btn("保存设置") { saveConfig() })
         root.addView(btn("测试当前配置") { showTestDialog() })
         root.addView(hint("修改后请点击保存，服务下次触发时自动加载"))
@@ -360,8 +393,62 @@ class MainActivity : AppCompatActivity() {
                 if (rbRealtime.isChecked) CatConfig.MODE_REALTIME else CatConfig.MODE_PUNCTUATION
             config.customEmoticons = etCustom.text.toString()
                 .split("\n").map { it.trim() }.filter { it.isNotEmpty() }.toTypedArray()
+            config.replacementRules = etRules.text.toString()
+                .split("\n")
+                .mapNotNull { line ->
+                    val t = line.trim()
+                    if (t.isEmpty()) return@mapNotNull null
+                    val idx = t.indexOf('=')
+                    if (idx <= 0) return@mapNotNull null
+                    val from = t.substring(0, idx).trim()
+                    val to = t.substring(idx + 1).trim()
+                    if (from.isEmpty() || to.isEmpty()) null else from to to
+                }
             config.save(this)
         } catch (_: Throwable) {}
+    }
+
+    /** 拉取仓库 rules/ 目录下的规则集列表到下拉框。 */
+    private fun refreshRuleSets() {
+        toast("正在拉取规则集…")
+        RuleManager.fetchRuleSets { list ->
+            runOnUiThread {
+                ruleSets.clear()
+                ruleSets.addAll(list)
+                val names = list.map { it.name }
+                ruleAdapter = ArrayAdapter(
+                    this,
+                    android.R.layout.simple_spinner_item,
+                    names
+                ).apply {
+                    setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+                }
+                ruleSpinner.adapter = ruleAdapter
+                toast("拉到 ${list.size} 个规则集")
+            }
+        }
+    }
+
+    /** 应用下拉框选中的规则集：下载 .toml 并填充到规则编辑框并立即生效。 */
+    private fun applySelectedRuleSet() {
+        val pos = ruleSpinner.selectedItemPosition
+        if (pos < 0 || pos >= ruleSets.size) {
+            toast("请先点击「刷新」并选择规则集")
+            return
+        }
+        val rs = ruleSets[pos]
+        toast("正在应用 ${rs.name}…")
+        RuleManager.fetchRule(rs) { (name, rules) ->
+            runOnUiThread {
+                if (rules.isEmpty()) {
+                    toast("解析失败或规则为空")
+                    return@runOnUiThread
+                }
+                etRules.setText(rules.joinToString("\n") { "${it.first}=${it.second}" })
+                persistConfig()
+                toast("已应用规则集${if (name != null) "：$name" else ""}（${rules.size} 条规则）")
+            }
+        }
     }
 
     private fun saveConfig() {
@@ -379,7 +466,8 @@ class MainActivity : AppCompatActivity() {
                 enableNiToZhuren = cbNi.isChecked,
                 enableRandomEmoticon = false,
                 processingMode = config.processingMode,
-                customEmoticons = config.customEmoticons
+                customEmoticons = config.customEmoticons,
+                replacementRules = config.replacementRules
             ))
         } catch (t: Throwable) {
             "测试失败: ${t.message}"

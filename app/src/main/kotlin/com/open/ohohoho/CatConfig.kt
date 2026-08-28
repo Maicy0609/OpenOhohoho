@@ -13,6 +13,7 @@ data class CatConfig(
     var enableRandomEmoticon: Boolean = true,// 末尾追加随机猫咪颜文字
     var processingMode: String = MODE_REALTIME, // 默认实时修改
     var customEmoticons: Array<String> = emptyArray(),
+    var replacementRules: List<Pair<String, String>> = emptyList(), // 自定义替换规则
 ) {
 
     fun getActiveEmoticons(): Array<String> =
@@ -27,6 +28,7 @@ data class CatConfig(
             .putBoolean("enable_emoticon", enableRandomEmoticon)
             .putString("processing_mode", processingMode)
             .putString("custom_emoticons", customEmoticons.joinToString("\n"))
+            .putString("custom_rules", replacementRules.joinToString("\n") { "${it.first}=${it.second}" })
             .apply()
     }
 
@@ -48,7 +50,18 @@ data class CatConfig(
                     ?.split("\n")
                     ?.map { it.trim() }
                     ?.filter { it.isNotEmpty() }
-                    ?.toTypedArray() ?: emptyArray()
+                    ?.toTypedArray() ?: emptyArray(),
+                replacementRules = sp.getString("custom_rules", "")
+                    ?.split("\n")
+                    ?.mapNotNull { line ->
+                        val t = line.trim()
+                        if (t.isEmpty()) return@mapNotNull null
+                        val idx = t.indexOf('=')
+                        if (idx <= 0) return@mapNotNull null
+                        val from = t.substring(0, idx).trim()
+                        val to = t.substring(idx + 1).trim()
+                        if (from.isEmpty() || to.isEmpty()) null else from to to
+                    } ?: emptyList()
             )
         }
 

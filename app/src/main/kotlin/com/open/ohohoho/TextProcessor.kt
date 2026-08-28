@@ -22,6 +22,10 @@ object TextProcessor {
      */
     fun process(text: String, config: CatConfig): String {
         var out = text.trim()
+        // 自定义替换规则优先（可覆盖内置的我/你规则）
+        for ((from, to) in config.replacementRules) {
+            out = out.replace(from, to)
+        }
         if (config.enableWoToBenmiao) out = out.replace("我", "我..我我")
         if (config.enableNiToZhuren) out = out.replace("你", "主..主人♥")
         if (config.enableMeow) out = addMeow(out)

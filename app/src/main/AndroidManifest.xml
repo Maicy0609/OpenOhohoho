@@ -8,6 +8,8 @@
     <!-- 前台服务：Android 14+ 必须声明 -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <!-- 在线拉取规则集 -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <!-- Shizuku 提权所需权限 -->
     <uses-permission android:name="moe.shizuku.manager.permission.API_V23" />
 
