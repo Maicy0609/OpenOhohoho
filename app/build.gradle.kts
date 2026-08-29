@@ -44,7 +44,13 @@ android {
     }
 
     buildFeatures {
+        compose = true
         aidl = true
+    }
+
+    composeOptions {
+        // 需与 Kotlin 版本匹配：Kotlin 1.9.24 -> Compose Compiler 1.5.14
+        kotlinCompilerExtensionVersion = "1.5.14"
     }
 
     compileOptions {
@@ -59,9 +65,21 @@ android {
 
 dependencies {
     implementation("androidx.core:core-ktx:1.13.1")
-    implementation("androidx.appcompat:appcompat:1.7.0")
-    implementation("com.google.android.material:material:1.12.0")
-    implementation("androidx.activity:activity-ktx:1.9.1")
+
+    // —— Jetpack Compose + Material 3 ——
+    implementation(platform("androidx.compose:compose-bom:2024.06.00"))
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.ui:ui-graphics")
+    implementation("androidx.compose.ui:ui-tooling-preview")
+    implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.material:material-icons-core")
+    debugImplementation("androidx.compose.ui:ui-tooling")
+
+    // —— Activity / Lifecycle 集成 ——
+    implementation("androidx.activity:activity-compose:1.9.1")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.3")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.3")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.3")
 
     // Shizuku API (runs with system-level privileges via ADB / root)
     implementation("dev.rikka.shizuku:api:13.1.5")
