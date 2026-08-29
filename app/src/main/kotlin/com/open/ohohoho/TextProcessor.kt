@@ -84,13 +84,24 @@ object TextProcessor {
             }
         }
 
-        // 2. 用占位符保护"我...我我"，再删掉装饰符号与 meowText，最后还原
-        result = result.replace("我...我我", "\u0000BM\u0001")
-        result = result.replace(DECORATION_STRIP, " ")
+        // 2. 移除断句文字（meowText）
         if (config.meowText.isNotEmpty()) {
             result = result.replace(config.meowText, "")
         }
-        result = result.replace("\u0000BM\u0001", "我...我我")
+
+        // 3. 逆向还原自定义替换规则（to→from，逆序）——关键：否则再次处理会累积爆炸
+        for ((from, to) in config.replacementRules.asReversed()) {
+            if (from.isNotEmpty() && to.isNotEmpty()) {
+                result = result.replace(to, from)
+            }
+        }
+
+        // 4. 内置 我/你 规则逆向
+        if (config.enableWoToBenmiao) result = result.replace("我..我我", "我")
+        if (config.enableNiToZhuren) result = result.replace("主..主人♥", "你")
+
+        // 5. 清理连续符号装饰
+        result = result.replace(DECORATION_STRIP, " ")
 
         return result.trim()
     }
