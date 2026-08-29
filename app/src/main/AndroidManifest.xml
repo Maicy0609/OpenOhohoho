@@ -79,10 +79,15 @@
                 android:value="keep_alive" />
         </service>
 
-        <!-- 快捷设置磁贴：改写剪贴板（前台 Activity 读取，规避后台限制） -->
+        <!-- 快捷设置磁贴：改写剪贴板（前台 Activity 读取，规避后台限制）。
+             透明无界面 + 立即 finish，匹配 cat-apk 实现。 -->
         <activity
             android:name=".tile.ClipboardRewriteActivity"
-            android:exported="false" />
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:label="@string/tile_rewrite_label"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
         <service
             android:name=".tile.RewriteTileService"

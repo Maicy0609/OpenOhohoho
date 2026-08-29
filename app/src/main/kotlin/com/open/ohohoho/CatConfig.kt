@@ -12,7 +12,7 @@ data class CatConfig(
     var enableNiToZhuren: Boolean = false,   // 你 -> 主..主人♥（已并入规则集）
     var enableRandomEmoticon: Boolean = true,// 末尾追加随机猫咪颜文字
     var meowText: String = "哦齁齁齁♥",        // 断句末尾追加的文字
-    var processingMode: String = MODE_REALTIME, // 默认实时修改
+    var processingMode: String = MODE_PUNCTUATION, // 默认标点触发（更稳定，避免反馈循环）
     var customEmoticons: Array<String> = emptyArray(),
     var replacementRules: List<Pair<String, String>> = emptyList(), // 自定义替换规则
     var isWhitelistMode: Boolean = true,       // true=白名单，false=黑名单
@@ -60,8 +60,8 @@ data class CatConfig(
                 enableNiToZhuren = sp.getBoolean("enable_ni", false),
                 enableRandomEmoticon = sp.getBoolean("enable_emoticon", true),
                 meowText = sp.getString("meow_text", "哦齁齁齁♥") ?: "哦齁齁齁♥",
-                processingMode = sp.getString("processing_mode", MODE_REALTIME)
-                    ?: MODE_REALTIME,
+                processingMode = sp.getString("processing_mode", MODE_PUNCTUATION)
+                    ?: MODE_PUNCTUATION,
                 customEmoticons = sp.getString("custom_emoticons", "")
                     ?.split("\n")
                     ?.map { it.trim() }
