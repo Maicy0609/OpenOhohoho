@@ -96,20 +96,23 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     // ---------- 配置修改 ----------
-    fun toggleMeow(v: Boolean) { config.enableMeow = v; persist() }
-    fun toggleEmoticon(v: Boolean) { config.enableRandomEmoticon = v; persist() }
-    fun setMode(mode: String) { config.processingMode = mode; persist() }
+    // 注意：config 是 var，所有修改必须用 copy() 生成新对象再替换，
+    // 否则原地改字段会使 StateFlow 的拷贝 equals 相等、不触发 UI 更新。
+    fun toggleMeow(v: Boolean) { config = config.copy(enableMeow = v); persist() }
+    fun toggleEmoticon(v: Boolean) { config = config.copy(enableRandomEmoticon = v); persist() }
+    fun setMode(mode: String) { config = config.copy(processingMode = mode); persist() }
 
     fun updateRulesText(t: String) {
         _ui.value = _ui.value.copy(rulesText = t)
-        config.replacementRules = parseRules(t)
+        config = config.copy(replacementRules = parseRules(t))
         persist()
     }
 
     fun updateEmoticonsText(t: String) {
         _ui.value = _ui.value.copy(emoticonsText = t)
-        config.customEmoticons =
-            t.split("\n").map { it.trim() }.filter { it.isNotEmpty() }.toTypedArray()
+        config = config.copy(
+            customEmoticons = t.split("\n").map { it.trim() }.filter { it.isNotEmpty() }.toTypedArray()
+        )
         persist()
     }
 
@@ -222,7 +225,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         RuleManager.fetchRule(rs) { (name, rules) ->
             if (rules.isEmpty()) { toast("解析失败或规则为空"); return@fetchRule }
             _ui.value = _ui.value.copy(rulesText = rules.joinToString("\n") { "${it.first}=${it.second}" })
-            config.replacementRules = rules
+            config = config.copy(replacementRules = rules)
             persist()
             toast("已应用规则集${if (name != null) "：$name" else ""}（${rules.size} 条规则）")
         }
@@ -251,7 +254,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val (name, rules) = LocalRuleManager.load(ctx, names[idx])
         if (rules.isEmpty()) { toast("规则为空或解析失败"); return }
         _ui.value = _ui.value.copy(rulesText = rules.joinToString("\n") { "${it.first}=${it.second}" })
-        config.replacementRules = rules
+        config = config.copy(replacementRules = rules)
         persist()
         toast("已加载${if (name != null) "：$name" else ""}（${rules.size} 条规则）")
     }
