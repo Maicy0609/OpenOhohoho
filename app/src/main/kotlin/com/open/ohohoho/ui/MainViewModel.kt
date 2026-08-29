@@ -10,6 +10,7 @@ import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import com.open.ohohoho.CatConfig
 import com.open.ohohoho.TextProcessor
+import com.open.ohohoho.overlay.KeepAliveService
 import com.open.ohohoho.overlay.OverlayHelper
 import com.open.ohohoho.overlay.OverlayInputService
 import com.open.ohohoho.shizuku.ShizukuManager
@@ -47,6 +48,7 @@ data class MainUiState(
     val shizukuGranted: Boolean = false,
     val overlayRunning: Boolean = false,
     val inputOverlayRunning: Boolean = false,
+    val keepAliveRunning: Boolean = false,
     val autoEnable: Boolean = false,
     val onlineState: OnlineRuleState = OnlineRuleState.Idle,
     val onlineSelected: Int = 0,
@@ -95,6 +97,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             shizukuGranted = ShizukuManager.isGranted(),
             overlayRunning = OverlayHelper.running,
             inputOverlayRunning = OverlayInputService.running,
+            keepAliveRunning = KeepAliveService.running,
         )
     }
 
@@ -254,6 +257,30 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             toast("已启动输入悬浮窗")
         }
         refreshStatus()
+    }
+
+    /** 启停保活（前台服务+通知+透明悬浮窗）。 */
+    fun toggleKeepAlive(v: Boolean) {
+        ctx.getSharedPreferences("keep_alive", Context.MODE_PRIVATE)
+            .edit().putBoolean("enabled", v).apply()
+        if (v) {
+            val intent = Intent(ctx, KeepAliveService::class.java)
+            if (Build.VERSION.SDK_INT >= 26) ctx.startForegroundService(intent) else ctx.startService(intent)
+            toast("已开启保活")
+        } else {
+            ctx.stopService(Intent(ctx, KeepAliveService::class.java))
+            toast("已关闭保活")
+        }
+        refreshStatus()
+    }
+
+    /** 通过 Shizuku 强制授予悬浮窗权限。 */
+    fun grantOverlayPermission() {
+        if (!ShizukuManager.isGranted()) { toast("请先授予 Shizuku 权限"); return }
+        toast("正在通过 Shizuku 授权悬浮窗…")
+        ShizukuManager.grantOverlayPermission(ctx) { result ->
+            toast("结果: $result")
+        }
     }
 
     fun openAccessibilitySettings() {

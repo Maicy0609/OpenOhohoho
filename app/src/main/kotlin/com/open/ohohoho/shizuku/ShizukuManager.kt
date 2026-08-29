@@ -147,6 +147,15 @@ settings put secure accessibility_enabled 1"""
         }
     }
 
+    /** 通过 Shizuku 强制授予本应用的悬浮窗权限（SYSTEM_ALERT_WINDOW）。 */
+    fun grantOverlayPermission(context: Context, callback: (String) -> Unit) {
+        val cmd = "appops set ${context.packageName} SYSTEM_ALERT_WINDOW allow"
+        exec(cmd) { result ->
+            AppLog.log("Shizuku 授权悬浮窗: $result")
+            callback(result)
+        }
+    }
+
     /** 判断本应用的无障碍服务当前是否已开启。 */
     fun isAccessibilityServiceEnabled(context: Context): Boolean {
         return try {

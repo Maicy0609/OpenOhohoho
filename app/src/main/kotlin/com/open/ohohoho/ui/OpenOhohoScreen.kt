@@ -328,6 +328,23 @@ private fun ServicePage(state: MainUiState, vm: MainViewModel) {
                 OutlinedButton(onClick = { vm.openQuickSettingsTiles() }, Modifier.fillMaxWidth()) {
                     Text("添加快捷设置磁贴")
                 }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "保活（透明悬浮窗+持续通知）",
+                        Modifier.weight(1f),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    Switch(checked = state.keepAliveRunning, onCheckedChange = { vm.toggleKeepAlive(it) })
+                }
+                Text(
+                    "提高进程存活率，避免无障碍改写服务被系统杀掉",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedButton(onClick = { vm.grantOverlayPermission() }, Modifier.fillMaxWidth()) {
+                    Text("用 Shizuku 授权悬浮窗权限")
+                }
             }
         }
     }

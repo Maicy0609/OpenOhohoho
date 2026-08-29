@@ -68,6 +68,17 @@
                 android:value="input_processing_overlay" />
         </service>
 
+        <!-- 保活服务：前台服务 + 持续通知 + 透明悬浮窗 -->
+        <service
+            android:name=".overlay.KeepAliveService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse"
+            android:label="@string/keepalive_service_name">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="keep_alive" />
+        </service>
+
         <!-- 快捷设置磁贴：改写剪贴板（前台 Activity 读取，规避后台限制） -->
         <activity
             android:name=".tile.ClipboardRewriteActivity"

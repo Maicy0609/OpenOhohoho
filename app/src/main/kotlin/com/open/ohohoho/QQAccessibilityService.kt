@@ -12,6 +12,7 @@ import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityWindowInfo
+import com.open.ohohoho.overlay.KeepAliveService
 import com.open.ohohoho.overlay.OverlayHelper
 import com.open.ohohoho.util.AppLog
 
@@ -109,6 +110,21 @@ class QQAccessibilityService : AccessibilityService() {
 
         // 打开悬浮窗日志，方便调试（若用户已授予悬浮窗权限）
         OverlayHelper.ensureOverlayLog(this)
+
+        // 启动保活（前台服务+通知+透明悬浮窗），提高进程存活率
+        startKeepAliveIfEnabled()
+    }
+
+    private fun startKeepAliveIfEnabled() {
+        val enabled = try {
+            getSharedPreferences("keep_alive", Context.MODE_PRIVATE).getBoolean("enabled", true)
+        } catch (t: Throwable) { true }
+        if (!enabled) return
+        try {
+            startForegroundService(Intent(this, KeepAliveService::class.java))
+        } catch (_: Throwable) {
+            try { startService(Intent(this, KeepAliveService::class.java)) } catch (_: Throwable) {}
+        }
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {

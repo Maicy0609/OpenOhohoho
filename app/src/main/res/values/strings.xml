@@ -5,6 +5,9 @@
     <string name="overlay_service_name">OpenOhoho 日志悬浮窗</string>
     <string name="input_service_name">OpenOhoho 输入处理悬浮窗</string>
     <string name="tile_rewrite_label">改写剪贴板</string>
+    <string name="keepalive_service_name">OpenOhoho 保活</string>
+    <string name="keepalive_title">OpenOhoho 运行中</string>
+    <string name="keepalive_text">无障碍改写服务保持运行</string>
     <string name="overlay_notification_channel">悬浮窗日志</string>
     <string name="overlay_notification_title">日志悬浮窗运行中</string>
 </resources>
