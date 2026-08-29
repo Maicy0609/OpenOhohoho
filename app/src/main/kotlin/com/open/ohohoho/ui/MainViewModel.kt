@@ -97,7 +97,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             shizukuGranted = ShizukuManager.isGranted(),
             overlayRunning = OverlayHelper.running,
             inputOverlayRunning = OverlayInputService.running,
-            keepAliveRunning = KeepAliveService.running,
+            // 保活开关反映"期望状态"（pref），避免因服务启动异步导致开关闪回
+            keepAliveRunning = ctx.getSharedPreferences("keep_alive", Context.MODE_PRIVATE)
+                .getBoolean("enabled", true),
         )
     }
 
@@ -263,6 +265,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun toggleKeepAlive(v: Boolean) {
         ctx.getSharedPreferences("keep_alive", Context.MODE_PRIVATE)
             .edit().putBoolean("enabled", v).apply()
+        // 立即同步开关状态，避免服务启动/停止异步导致要按两下
+        _ui.value = _ui.value.copy(keepAliveRunning = v)
         if (v) {
             val intent = Intent(ctx, KeepAliveService::class.java)
             if (Build.VERSION.SDK_INT >= 26) ctx.startForegroundService(intent) else ctx.startService(intent)
@@ -271,7 +275,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             ctx.stopService(Intent(ctx, KeepAliveService::class.java))
             toast("已关闭保活")
         }
-        refreshStatus()
     }
 
     /** 通过 Shizuku 强制授予悬浮窗权限。 */

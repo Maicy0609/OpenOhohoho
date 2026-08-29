@@ -14,7 +14,6 @@ import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityWindowInfo
 import com.open.ohohoho.overlay.KeepAliveService
-import com.open.ohohoho.overlay.OverlayHelper
 import com.open.ohohoho.util.AppLog
 
 /**
@@ -109,8 +108,7 @@ class QQAccessibilityService : AccessibilityService() {
             "无障碍服务已连接，模式=${if (cfg.isWhitelistMode) "白名单" else "黑名单"}，应用=${cfg.managedPackages.joinToString()}"
         )
 
-        // 打开悬浮窗日志，方便调试（若用户已授予悬浮窗权限）
-        OverlayHelper.ensureOverlayLog(this)
+        // 不自动打开日志悬浮窗（由用户在设置页手动开启）
 
         // 启动保活（前台服务+通知+透明悬浮窗），提高进程存活率
         startKeepAliveIfEnabled()
