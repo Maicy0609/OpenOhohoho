@@ -14,6 +14,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.offset
@@ -22,6 +28,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -64,6 +71,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -123,39 +131,78 @@ fun OpenOhohoScreen(viewModel: MainViewModel) {
     ) { inner ->
         val colorScheme = MaterialTheme.colorScheme
         Box(Modifier.fillMaxSize().padding(inner)) {
-            // 渐变背景，衬托毛玻璃卡片
+            // —— 底层：渐变 + 鲜明的彩色内容块，让毛玻璃卡片"有内容可磨" ——
             Box(
                 Modifier
                     .fillMaxSize()
                     .background(
                         Brush.verticalGradient(
                             listOf(
-                                colorScheme.primaryContainer.copy(alpha = 0.45f),
+                                colorScheme.primaryContainer.copy(alpha = 0.5f),
                                 colorScheme.surface,
-                                colorScheme.tertiaryContainer.copy(alpha = 0.35f),
+                                colorScheme.tertiaryContainer.copy(alpha = 0.4f),
                             )
                         )
                     )
             )
-            // 用 Modifier.blur 做柔和光斑（液态玻璃/毛玻璃氛围）
+            // 高饱和圆角色块（前景"内容"），透过半透明卡片形成玻璃感
+            Box(
+                Modifier
+                    .size(150.dp)
+                    .offset(x = 36.dp, y = 150.dp)
+                    .clip(RoundedCornerShape(26.dp))
+                    .background(colorScheme.primary.copy(alpha = 0.55f))
+            )
+            Box(
+                Modifier
+                    .size(110.dp)
+                    .offset(x = 260.dp, y = 90.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(colorScheme.secondary.copy(alpha = 0.55f))
+            )
+            Box(
+                Modifier
+                    .size(140.dp)
+                    .align(Alignment.BottomStart)
+                    .offset(x = 24.dp, y = (-40).dp)
+                    .clip(RoundedCornerShape(30.dp))
+                    .background(colorScheme.tertiary.copy(alpha = 0.5f))
+            )
+            Box(
+                Modifier
+                    .size(90.dp)
+                    .align(Alignment.BottomEnd)
+                    .offset(x = (-24).dp, y = (-120).dp)
+                    .background(colorScheme.primaryContainer.copy(alpha = 0.8f), CircleShape)
+            )
+            // 柔和光斑（Modifier.blur）增加玻璃光泽氛围
             Box(
                 Modifier
                     .size(220.dp)
-                    .offset(x = (-40).dp, y = 120.dp)
-                    .background(colorScheme.primary.copy(alpha = 0.30f), CircleShape)
+                    .offset(x = (-40).dp, y = 300.dp)
+                    .background(colorScheme.primary.copy(alpha = 0.25f), CircleShape)
                     .blur(60.dp)
             )
-            Box(
-                Modifier
-                    .size(260.dp)
-                    .align(Alignment.BottomEnd)
-                    .background(colorScheme.tertiary.copy(alpha = 0.25f), CircleShape)
-                    .blur(70.dp)
-            )
-            when (tab) {
-                Tab.Service -> ServicePage(state, viewModel)
-                Tab.Settings -> SettingsPage(state, viewModel)
-                Tab.Rules -> RulesPage(state, viewModel)
+
+            // —— 页面切换：M3 风格的滑动 + 淡入淡出过渡 ——
+            AnimatedContent(
+                targetState = tab,
+                transitionSpec = {
+                    if (targetState.ordinal > initialState.ordinal) {
+                        (slideInHorizontally { it } + fadeIn()) togetherWith
+                            (slideOutHorizontally { -it } + fadeOut())
+                    } else {
+                        (slideInHorizontally { -it } + fadeIn()) togetherWith
+                            (slideOutHorizontally { it } + fadeOut())
+                    }
+                },
+                label = "tabTransition",
+            ) { t ->
+                when (t) {
+                    Tab.Service -> ServicePage(state, viewModel)
+                    Tab.Settings -> SettingsPage(state, viewModel)
+                    Tab.Rules -> RulesPage(state, viewModel)
+                }
             }
         }
     }
@@ -285,7 +332,7 @@ private fun ServicePage(state: MainUiState, vm: MainViewModel) {
         ElevatedCard(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)
+                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
             ),
         ) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -306,7 +353,7 @@ private fun ServicePage(state: MainUiState, vm: MainViewModel) {
         ElevatedCard(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)
+                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
             ),
         ) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -374,7 +421,7 @@ private fun SettingsPage(state: MainUiState, vm: MainViewModel) {
         ElevatedCard(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)
+                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
             ),
         ) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -403,7 +450,7 @@ private fun SettingsPage(state: MainUiState, vm: MainViewModel) {
         ElevatedCard(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)
+                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
             ),
         ) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -424,7 +471,7 @@ private fun SettingsPage(state: MainUiState, vm: MainViewModel) {
         ElevatedCard(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)
+                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
             ),
         ) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -459,7 +506,7 @@ private fun SettingsPage(state: MainUiState, vm: MainViewModel) {
         OutlinedCard(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)
+                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
             ),
         ) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -477,7 +524,7 @@ private fun SettingsPage(state: MainUiState, vm: MainViewModel) {
         OutlinedCard(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)
+                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
             ),
         ) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -520,7 +567,7 @@ private fun RulesPage(state: MainUiState, vm: MainViewModel) {
         OutlinedCard(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)
+                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
             ),
         ) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -548,7 +595,7 @@ private fun RulesPage(state: MainUiState, vm: MainViewModel) {
         OutlinedCard(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)
+                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
             ),
         ) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
