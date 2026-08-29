@@ -44,8 +44,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var rbPunctuation: CheckBox
     private lateinit var rbRealtime: CheckBox
     private lateinit var cbMeow: CheckBox
-    private lateinit var cbWo: CheckBox
-    private lateinit var cbNi: CheckBox
     private lateinit var cbEmoticon: CheckBox
     private lateinit var cbAutoEnable: CheckBox
     private lateinit var etCustom: EditText
@@ -190,11 +188,9 @@ class MainActivity : AppCompatActivity() {
         root.addView(divider())
         root.addView(sectionLabel("功能开关"))
         cbMeow = addCheckbox(root, "断句加哦齁齁齁♥", "每句末尾加哦齁齁齁♥", config.enableMeow)
-        cbWo = addCheckbox(root, "我 -> 我..我我", "替换所有'我'", config.enableWoToBenmiao)
-        cbNi = addCheckbox(root, "你 -> 主..主人♥", "替换所有'你'", config.enableNiToZhuren)
-        cbEmoticon = addCheckbox(root, "随机颜文字", "末尾添加随机猫咪颜文字", config.enableRandomEmoticon)
+        cbEmoticon = addCheckbox(root, "末尾随机颜文字", "在消息末尾追加随机猫咪颜文字", config.enableRandomEmoticon)
         // 勾选即保存并立即生效
-        arrayOf(cbMeow, cbWo, cbNi, cbEmoticon).forEach { cb ->
+        arrayOf(cbMeow, cbEmoticon).forEach { cb ->
             cb.setOnCheckedChangeListener { _, _ -> persistConfig() }
         }
 
@@ -386,8 +382,6 @@ class MainActivity : AppCompatActivity() {
     private fun persistConfig() {
         try {
             config.enableMeow = cbMeow.isChecked
-            config.enableWoToBenmiao = cbWo.isChecked
-            config.enableNiToZhuren = cbNi.isChecked
             config.enableRandomEmoticon = cbEmoticon.isChecked
             config.processingMode =
                 if (rbRealtime.isChecked) CatConfig.MODE_REALTIME else CatConfig.MODE_PUNCTUATION
@@ -462,8 +456,8 @@ class MainActivity : AppCompatActivity() {
         val processed = try {
             TextProcessor.process(original, CatConfig(
                 enableMeow = cbMeow.isChecked,
-                enableWoToBenmiao = cbWo.isChecked,
-                enableNiToZhuren = cbNi.isChecked,
+                enableWoToBenmiao = config.enableWoToBenmiao,
+                enableNiToZhuren = config.enableNiToZhuren,
                 enableRandomEmoticon = false,
                 processingMode = config.processingMode,
                 customEmoticons = config.customEmoticons,

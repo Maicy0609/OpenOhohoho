@@ -8,8 +8,8 @@ import android.content.Context
  */
 data class CatConfig(
     var enableMeow: Boolean = true,          // 断句后每句加"哦齁齁齁♥"
-    var enableWoToBenmiao: Boolean = true,   // 我 -> 我..我我
-    var enableNiToZhuren: Boolean = false,   // 你 -> 主..主人♥
+    var enableWoToBenmiao: Boolean = false,  // 我 -> 我..我我（已并入规则集）
+    var enableNiToZhuren: Boolean = false,   // 你 -> 主..主人♥（已并入规则集）
     var enableRandomEmoticon: Boolean = true,// 末尾追加随机猫咪颜文字
     var processingMode: String = MODE_REALTIME, // 默认实时修改
     var customEmoticons: Array<String> = emptyArray(),
@@ -41,7 +41,7 @@ data class CatConfig(
             val sp = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             return CatConfig(
                 enableMeow = sp.getBoolean("enable_meow", true),
-                enableWoToBenmiao = sp.getBoolean("enable_wo", true),
+                enableWoToBenmiao = sp.getBoolean("enable_wo", false),
                 enableNiToZhuren = sp.getBoolean("enable_ni", false),
                 enableRandomEmoticon = sp.getBoolean("enable_emoticon", true),
                 processingMode = sp.getString("processing_mode", MODE_REALTIME)

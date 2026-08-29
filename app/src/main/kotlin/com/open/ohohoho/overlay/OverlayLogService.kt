@@ -91,15 +91,24 @@ class OverlayLogService : Service(), AppLog.Listener {
             setTextColor(Color.rgb(255, 190, 120))
             textSize = 12f
         }
+        val clear = Button(this).apply {
+            text = "清空"
+            setTextColor(Color.rgb(255, 220, 160))
+            textSize = 12f
+            setBackgroundColor(Color.TRANSPARENT)
+            setPadding(10, 0, 6, 0)
+            setOnClickListener { clearLog() }  // 一键清空日志
+        }
         val close = Button(this).apply {
             text = "✕"
             setTextColor(Color.WHITE)
             textSize = 12f
             setBackgroundColor(Color.TRANSPARENT)
-            setPadding(16, 0, 16, 0)
+            setPadding(12, 0, 12, 0)
             setOnClickListener { stopSelf() }  // 关闭悬浮窗
         }
         header.addView(title, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        header.addView(clear)
         header.addView(close)
 
         val container = LinearLayout(this).apply {
@@ -161,6 +170,15 @@ class OverlayLogService : Service(), AppLog.Listener {
     }
 
     private data class DragState(val initialX: Int, val initialY: Int, val touchX: Float, val touchY: Float)
+
+    /** 一键清空悬浮窗显示与环形缓冲。 */
+    private fun clearLog() {
+        uiHandler.post {
+            history.clear()
+            textView.text = ""
+            AppLog.clear()
+        }
+    }
 
     /** AppLog.Listener：把新日志追加到悬浮窗。 */
     override fun onLog(line: String) {

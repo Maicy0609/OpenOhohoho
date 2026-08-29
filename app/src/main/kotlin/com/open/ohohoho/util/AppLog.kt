@@ -54,6 +54,11 @@ object AppLog {
 
     fun recent(): List<String> = synchronized(ring) { ring.toList() }
 
+    /** 清空环形缓冲（悬浮窗清空按钮调用）。 */
+    fun clear() {
+        synchronized(ring) { ring.clear() }
+    }
+
     private fun replay(listener: Listener) {
         synchronized(ring) { ring.toList() }.forEach { listener.onLog(it) }
     }
