@@ -15,20 +15,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -41,7 +37,6 @@ import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
@@ -129,71 +124,18 @@ fun OpenOhohoScreen(viewModel: MainViewModel) {
             }
         }
     ) { inner ->
-        val colorScheme = MaterialTheme.colorScheme
         Box(Modifier.fillMaxSize().padding(inner)) {
-            // —— 底层：渐变 + 鲜明的彩色内容块，让毛玻璃卡片"有内容可磨" ——
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(
-                                colorScheme.primaryContainer.copy(alpha = 0.5f),
-                                colorScheme.surface,
-                                colorScheme.tertiaryContainer.copy(alpha = 0.4f),
-                            )
-                        )
-                    )
-            )
-            // 高饱和圆角色块（前景"内容"），透过半透明卡片形成玻璃感
-            Box(
-                Modifier
-                    .size(150.dp)
-                    .offset(x = 36.dp, y = 150.dp)
-                    .clip(RoundedCornerShape(26.dp))
-                    .background(colorScheme.primary.copy(alpha = 0.55f))
-            )
-            Box(
-                Modifier
-                    .size(110.dp)
-                    .offset(x = 260.dp, y = 90.dp)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(colorScheme.secondary.copy(alpha = 0.55f))
-            )
-            Box(
-                Modifier
-                    .size(140.dp)
-                    .align(Alignment.BottomStart)
-                    .offset(x = 24.dp, y = (-40).dp)
-                    .clip(RoundedCornerShape(30.dp))
-                    .background(colorScheme.tertiary.copy(alpha = 0.5f))
-            )
-            Box(
-                Modifier
-                    .size(90.dp)
-                    .align(Alignment.BottomEnd)
-                    .offset(x = (-24).dp, y = (-120).dp)
-                    .background(colorScheme.primaryContainer.copy(alpha = 0.8f), CircleShape)
-            )
-            // 柔和光斑（Modifier.blur）增加玻璃光泽氛围
-            Box(
-                Modifier
-                    .size(220.dp)
-                    .offset(x = (-40).dp, y = 300.dp)
-                    .background(colorScheme.primary.copy(alpha = 0.25f), CircleShape)
-                    .blur(60.dp)
-            )
-
-            // —— 页面切换：M3 风格的滑动 + 淡入淡出过渡 ——
+            // 轻量页面过渡：短距离滑动 + 淡入淡出（tween，避免卡顿）
             AnimatedContent(
                 targetState = tab,
+                contentKey = { it },
                 transitionSpec = {
                     if (targetState.ordinal > initialState.ordinal) {
-                        (slideInHorizontally { it } + fadeIn()) togetherWith
-                            (slideOutHorizontally { -it } + fadeOut())
+                        (slideInHorizontally(tween(220)) { it / 3 } + fadeIn(tween(160)))
+                            .togetherWith(slideOutHorizontally(tween(160)) { -it / 3 } + fadeOut(tween(120)))
                     } else {
-                        (slideInHorizontally { -it } + fadeIn()) togetherWith
-                            (slideOutHorizontally { it } + fadeOut())
+                        (slideInHorizontally(tween(220)) { -it / 3 } + fadeIn(tween(160)))
+                            .togetherWith(slideOutHorizontally(tween(160)) { it / 3 } + fadeOut(tween(120)))
                     }
                 },
                 label = "tabTransition",
@@ -329,12 +271,7 @@ private fun PageColumn(content: @Composable () -> Unit) {
 @Composable
 private fun ServicePage(state: MainUiState, vm: MainViewModel) {
     PageColumn {
-        ElevatedCard(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
-            ),
-        ) {
+        ElevatedCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("服务状态", style = MaterialTheme.typography.titleMedium)
                 StatusRow("无障碍服务", if (state.accessibilityEnabled) "已开启" else "未开启")
@@ -350,12 +287,7 @@ private fun ServicePage(state: MainUiState, vm: MainViewModel) {
             }
         }
 
-        ElevatedCard(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
-            ),
-        ) {
+        ElevatedCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("服务操作", style = MaterialTheme.typography.titleMedium)
                 OutlinedButton(onClick = { vm.openAccessibilitySettings() }, Modifier.fillMaxWidth()) {
@@ -418,12 +350,7 @@ private fun StatusRow(label: String, value: String) {
 private fun SettingsPage(state: MainUiState, vm: MainViewModel) {
     PageColumn {
         // 处理模式
-        ElevatedCard(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
-            ),
-        ) {
+        ElevatedCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("处理模式", style = MaterialTheme.typography.titleMedium)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -447,12 +374,7 @@ private fun SettingsPage(state: MainUiState, vm: MainViewModel) {
         }
 
         // 功能开关
-        ElevatedCard(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
-            ),
-        ) {
+        ElevatedCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("功能开关", style = MaterialTheme.typography.titleMedium)
                 SwitchRow("断句添加", state.config.enableMeow) { vm.toggleMeow(it) }
@@ -468,12 +390,7 @@ private fun SettingsPage(state: MainUiState, vm: MainViewModel) {
         }
 
         // 目标应用（黑白名单）
-        ElevatedCard(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
-            ),
-        ) {
+        ElevatedCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("目标应用", style = MaterialTheme.typography.titleMedium)
                 Text(
@@ -503,12 +420,7 @@ private fun SettingsPage(state: MainUiState, vm: MainViewModel) {
         }
 
         // 自定义颜文字
-        OutlinedCard(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
-            ),
-        ) {
+        OutlinedCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("自定义颜文字", style = MaterialTheme.typography.titleMedium)
                 OutlinedTextField(
@@ -521,12 +433,7 @@ private fun SettingsPage(state: MainUiState, vm: MainViewModel) {
         }
 
         // 自定义替换规则
-        OutlinedCard(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
-            ),
-        ) {
+        OutlinedCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("自定义替换规则", style = MaterialTheme.typography.titleMedium)
                 Text(
@@ -564,12 +471,7 @@ private fun SwitchRow(label: String, checked: Boolean, onChecked: (Boolean) -> U
 private fun RulesPage(state: MainUiState, vm: MainViewModel) {
     PageColumn {
         // 在线规则集
-        OutlinedCard(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
-            ),
-        ) {
+        OutlinedCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("在线规则集", style = MaterialTheme.typography.titleMedium)
                 Text(
@@ -592,12 +494,7 @@ private fun RulesPage(state: MainUiState, vm: MainViewModel) {
         }
 
         // 本地规则集
-        OutlinedCard(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
-            ),
-        ) {
+        OutlinedCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("本地规则集(.toml)", style = MaterialTheme.typography.titleMedium)
                 Text(
