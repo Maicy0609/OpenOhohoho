@@ -9,7 +9,8 @@
 本项目承蒙以下项目启发并参考，特此致谢：
 
 - **原作者：QiCaiJie114514 · [QQMiaoAssistant](https://github.com/QiCaiJie114514/QQMiaoAssistant)** —— 原「QQ猫语助手」开源实现（Java，AGPL-3.0），提供了可配置替换规则、断句文字、颜文字与处理模式的核心设计思路。
-- 本仓库是在其基础之上进行的 **Kotlin + Jetpack Compose 重构与功能扩展**（Shizuku、黑白名单、规则集、微信手动输入悬浮窗等）。
+- **[cat-apk](https://github.com/Leon-kennedy-god/cat-apk)（衍生项目）** —— 启发了「快捷设置磁贴改写剪贴板」的交互方案（前台读取剪贴板以规避 Android 10+ 后台读取限制），以及剪贴板改写的实现思路。
+- 本仓库是在以上项目基础之上进行的 **Kotlin + Jetpack Compose 重构与功能扩展**（Shizuku、黑白名单、规则集、微信手动输入悬浮窗、快捷设置磁贴等）。
 
 > 双方均为 **AGPL-3.0** 许可，使用与二次开发请遵守相应协议并保留出处。
 

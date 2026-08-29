@@ -222,6 +222,17 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         refreshStatus()
     }
 
+    /** 打开"编辑快捷设置"页，让用户把"改写剪贴板"磁贴加到通知栏。 */
+    fun openQuickSettingsTiles() {
+        try {
+            ctx.startActivity(
+                Intent(Settings.ACTION_QUICK_SETTINGS_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+        } catch (_: Throwable) {
+            toast("无法打开快捷设置编辑")
+        }
+    }
+
     /** 启停"微信输入处理悬浮窗"（手动输入→处理→复制到剪贴板）。 */
     fun toggleInputOverlay() {
         if (!Settings.canDrawOverlays(ctx)) {

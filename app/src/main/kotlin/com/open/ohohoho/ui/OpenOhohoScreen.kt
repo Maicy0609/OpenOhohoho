@@ -341,6 +341,14 @@ private fun ServicePage(state: MainUiState, vm: MainViewModel) {
                         Text(if (state.inputOverlayRunning) "关闭" else "启动")
                     }
                 }
+                Text(
+                    "快捷设置磁贴：复制后在通知栏点「改写剪贴板」磁贴，即可把剪贴板按规则改写后直接粘贴",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedButton(onClick = { vm.openQuickSettingsTiles() }, Modifier.fillMaxWidth()) {
+                    Text("添加快捷设置磁贴")
+                }
             }
         }
     }

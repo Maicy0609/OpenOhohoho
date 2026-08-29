@@ -68,6 +68,25 @@
                 android:value="input_processing_overlay" />
         </service>
 
+        <!-- 快捷设置磁贴：改写剪贴板（前台 Activity 读取，规避后台限制） -->
+        <activity
+            android:name=".tile.ClipboardRewriteActivity"
+            android:exported="false" />
+
+        <service
+            android:name=".tile.RewriteTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_tile_rewrite"
+            android:label="@string/tile_rewrite_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.quicksettings"
+                android:value="@string/tile_rewrite_label" />
+        </service>
+
         <!-- Shizuku 必需：用于获取 binder（配合 dev.rikka.shizuku:provider） -->
         <provider
             android:name="rikka.shizuku.ShizukuProvider"
