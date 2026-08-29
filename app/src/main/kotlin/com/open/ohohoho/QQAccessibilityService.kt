@@ -129,6 +129,16 @@ class QQAccessibilityService : AccessibilityService() {
 
     /** 处理输入变化事件（TYPE_VIEW_TEXT_CHANGED / TYPE_WINDOW_CONTENT_CHANGED）。 */
     private fun handleInputChange(event: AccessibilityEvent) {
+        // 忽略"我们自己写回"触发的反馈事件（避免二次处理累积爆炸）
+        val src0 = event.source
+        val curText = src0?.text?.toString()
+        if (lastSet.isNotEmpty() && lastWriteTime > 0 &&
+            curText == lastSet && System.currentTimeMillis() - lastWriteTime < 800
+        ) {
+            src0?.recycle()
+            return
+        }
+
         // 每次重新加载，让功能开关/处理模式改动立即生效
         cachedConfig = CatConfig.load(this)
         val mode = cachedConfig?.processingMode ?: CatConfig.MODE_PUNCTUATION
