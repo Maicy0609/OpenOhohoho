@@ -30,10 +30,12 @@ class QQAccessibilityService : AccessibilityService() {
             "com.tencent.mm:id/b3c",         // 微信输入框(常见 id)
         )
 
-        // 发送按钮资源 id 候选
+        // 发送按钮资源 id 候选（QQ 发送按钮 id 相对稳定；可补充变体）
         private val SEND_IDS = setOf(
-            "com.tencent.mobileqq:id/send_btn", // QQ 发送按钮
-            "com.tencent.mm:id/ai7",            // 微信发送按钮(常见 id)
+            "com.tencent.mobileqq:id/send_btn",     // QQ 发送按钮
+            "com.tencent.mobileqq:id/ivTitleBtnRightButton", // QQ 部分版本
+            "com.tencent.mm:id/ai7",                // 微信发送按钮(常见 id)
+            "com.tencent.mm:id/aa0",                // 微信发送按钮(变体)
         )
 
         // 事件类型常量
@@ -206,6 +208,9 @@ class QQAccessibilityService : AccessibilityService() {
             }
 
             AppLog.log("写入: raw=$text → target=$target")
+            if (isFinal && config.enableRandomEmoticon && cfgForProcess.enableRandomEmoticon) {
+                AppLog.log("本次发送已追加随机颜文字")
+            }
             if (setText(node, target)) {
                 lastSet = target
                 lastWriteTime = System.currentTimeMillis()

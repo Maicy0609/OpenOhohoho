@@ -351,9 +351,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     // ---------- 测试 ----------
     fun testConfig() {
+        // 保留当前配置（含随机颜文字开关），预览能直接看到颜文字是否触发
         val result = TextProcessor.process(
             "今天我很好，你准备好了吗？我们去公园玩吧！",
-            config.copy(enableRandomEmoticon = false)
+            config
         )
         _ui.value = _ui.value.copy(testResult = result, showTestDialog = true)
     }
