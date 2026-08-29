@@ -128,6 +128,14 @@ class QQAccessibilityService : AccessibilityService() {
 
     /** 处理输入变化事件（TYPE_VIEW_TEXT_CHANGED / TYPE_WINDOW_CONTENT_CHANGED）。 */
     private fun handleInputChange(event: AccessibilityEvent) {
+        // 调试：确认微信是否真的发送输入事件、事件源是否可用
+        if (debugDumpEnabled()) {
+            val src = event.source
+            AppLog.log(
+                "输入事件: type=${event.eventType} pkg=${event.packageName} " +
+                    "srcCls=${src?.className?.toString() ?: "null"} editable=${src?.isEditable}"
+            )
+        }
         // 每次重新加载，让功能开关/处理模式改动立即生效
         cachedConfig = CatConfig.load(this)
         val mode = cachedConfig?.processingMode ?: CatConfig.MODE_PUNCTUATION
@@ -292,33 +300,44 @@ class QQAccessibilityService : AccessibilityService() {
         false
     }
 
-    /** 调试：打印当前窗口整棵 UI 树（最多 80 个节点），用于诊断微信/QQ 暴露了哪些节点。 */
+    /** 调试：先看 rootInActiveWindow，再遍历 getWindows() 所有窗口，确认微信是否暴露任何内容。 */
     private fun dumpEditableNodes() {
-        val root = rootInActiveWindow ?: run {
-            AppLog.log("UI抓取: rootInActiveWindow 为空（窗口内容未暴露给无障碍）")
-            return
-        }
-        try {
-            val sb = StringBuilder()
-            var n = 0
-            fun walk(node: AccessibilityNodeInfo, depth: Int) {
-                if (n > 80) return
-                val cls = node.className?.toString() ?: ""
-                val id = node.viewIdResourceName ?: ""
-                val editable = if (node.isEditable) " [可编辑]" else ""
-                val txt = node.text?.toString()?.take(24) ?: ""
-                sb.append("\n[d$depth] cls=$cls id=$id$editable txt=\"$txt\"")
-                n++
-                for (i in 0 until node.childCount) {
-                    val c = node.getChild(i) ?: continue
-                    walk(c, depth + 1)
-                    c.recycle()
-                }
-            }
-            walk(root, 0)
-            AppLog.log("UI树($n 节点): $sb")
-        } finally {
+        val sb = StringBuilder()
+
+        val root = rootInActiveWindow
+        if (root != null) {
+            sb.append("== rootInActiveWindow ==")
+            walkNodes(root, sb, 0)
             root.recycle()
+        } else {
+            sb.append("rootInActiveWindow = null")
+        }
+
+        sb.append("\n== getWindows() ==")
+        try {
+            for (w in getWindows()) {
+                sb.append("\n[window] type=${w.type} layer=${w.layerInPixels}")
+                val r = w.root ?: continue
+                walkNodes(r, sb, 1)
+                r.recycle()
+            }
+        } catch (t: Throwable) {
+            sb.append("\ngetWindows 失败: ${t.message}")
+        }
+
+        AppLog.log("UI树: $sb")
+    }
+
+    private fun walkNodes(node: AccessibilityNodeInfo, sb: StringBuilder, depth: Int) {
+        val cls = node.className?.toString() ?: ""
+        val id = node.viewIdResourceName ?: ""
+        val editable = if (node.isEditable) " [可编辑]" else ""
+        val txt = node.text?.toString()?.take(24) ?: ""
+        sb.append("\n[d$depth] cls=$cls id=$id$editable txt=\"$txt\"")
+        for (i in 0 until node.childCount) {
+            val c = node.getChild(i) ?: continue
+            walkNodes(c, sb, depth + 1)
+            c.recycle()
         }
     }
 
