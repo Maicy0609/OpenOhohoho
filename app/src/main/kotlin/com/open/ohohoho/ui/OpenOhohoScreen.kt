@@ -283,6 +283,17 @@ private fun ServicePage(state: MainUiState, vm: MainViewModel) {
                         Text(if (state.overlayRunning) "关闭" else "启动")
                     }
                 }
+                Text(
+                    "微信输入悬浮窗（用于被无障碍屏蔽的应用）：输入后点「处理并复制」，回微信粘贴即可",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("微信输入悬浮窗", Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+                    Button(onClick = { vm.toggleInputOverlay() }) {
+                        Text(if (state.inputOverlayRunning) "关闭" else "启动")
+                    }
+                }
             }
         }
     }

@@ -4,12 +4,14 @@ import android.app.Application
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.provider.Settings
 import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import com.open.ohohoho.CatConfig
 import com.open.ohohoho.TextProcessor
 import com.open.ohohoho.overlay.OverlayHelper
+import com.open.ohohoho.overlay.OverlayInputService
 import com.open.ohohoho.shizuku.ShizukuManager
 import com.open.ohohoho.util.LocalRuleManager
 import com.open.ohohoho.util.RuleManager
@@ -44,6 +46,7 @@ data class MainUiState(
     val shizukuAvailable: Boolean = false,
     val shizukuGranted: Boolean = false,
     val overlayRunning: Boolean = false,
+    val inputOverlayRunning: Boolean = false,
     val autoEnable: Boolean = false,
     val onlineState: OnlineRuleState = OnlineRuleState.Idle,
     val onlineSelected: Int = 0,
@@ -91,6 +94,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             shizukuAvailable = ShizukuManager.isAvailable(),
             shizukuGranted = ShizukuManager.isGranted(),
             overlayRunning = OverlayHelper.running,
+            inputOverlayRunning = OverlayInputService.running,
         )
     }
 
@@ -214,6 +218,28 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         } else {
             OverlayHelper.ensureOverlayLog(ctx)
             toast("已启动日志悬浮窗")
+        }
+        refreshStatus()
+    }
+
+    /** 启停"微信输入处理悬浮窗"（手动输入→处理→复制到剪贴板）。 */
+    fun toggleInputOverlay() {
+        if (!Settings.canDrawOverlays(ctx)) {
+            try {
+                ctx.startActivity(
+                    Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${ctx.packageName}"))
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                )
+            } catch (_: Throwable) {}
+            return
+        }
+        if (OverlayInputService.running) {
+            ctx.stopService(Intent(ctx, OverlayInputService::class.java))
+            toast("已关闭输入悬浮窗")
+        } else {
+            val intent = Intent(ctx, OverlayInputService::class.java)
+            if (Build.VERSION.SDK_INT >= 26) ctx.startForegroundService(intent) else ctx.startService(intent)
+            toast("已启动输入悬浮窗")
         }
         refreshStatus()
     }

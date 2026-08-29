@@ -57,6 +57,17 @@
                 android:value="debug_log_overlay" />
         </service>
 
+        <!-- 微信手动输入悬浮窗（可选） -->
+        <service
+            android:name=".overlay.OverlayInputService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse"
+            android:label="@string/input_service_name">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="input_processing_overlay" />
+        </service>
+
         <!-- Shizuku 必需：用于获取 binder（配合 dev.rikka.shizuku:provider） -->
         <provider
             android:name="rikka.shizuku.ShizukuProvider"
