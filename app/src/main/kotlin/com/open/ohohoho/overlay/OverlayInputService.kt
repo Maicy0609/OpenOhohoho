@@ -44,7 +44,9 @@ class OverlayInputService : Service() {
 
     private lateinit var wm: WindowManager
     private lateinit var editText: EditText
+    private lateinit var container: LinearLayout
     private var rootView: View? = null
+    private var params: WindowManager.LayoutParams? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -86,6 +88,8 @@ class OverlayInputService : Service() {
             setPadding(16, 12, 16, 12)
             gravity = Gravity.START or Gravity.TOP
             minLines = 4
+            // 失焦后点击输入框，重新聚焦并弹出输入法
+            setOnClickListener { setFocusable(true) }
         }
 
         val header = LinearLayout(this).apply {
@@ -131,7 +135,7 @@ class OverlayInputService : Service() {
         btnRow.addView(clearBtn, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         btnRow.addView(processBtn, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
 
-        val container = LinearLayout(this).apply {
+        container = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.argb(230, 25, 25, 25))
             addView(header)
@@ -146,11 +150,11 @@ class OverlayInputService : Service() {
             @Suppress("DEPRECATION")
             WindowManager.LayoutParams.TYPE_PHONE
         }
-        val params = WindowManager.LayoutParams(
+        params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
             type,
-            // 窗口需可聚焦，点击输入框才能弹起输入法
+            // 初始可聚焦，打开即弹输入法；处理完成后 setFocusable(false) 让出焦点
             WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
             PixelFormat.TRANSLUCENT
         ).apply {
@@ -174,6 +178,31 @@ class OverlayInputService : Service() {
         }
     }
 
+    /** 切换窗口可聚焦状态：聚焦时弹输入法；失焦时把焦点/触摸让给后台应用。 */
+    private fun setFocusable(focusable: Boolean) {
+        val p = params ?: return
+        if (focusable) {
+            p.flags = p.flags and WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv()
+        } else {
+            p.flags = p.flags or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+        }
+        try { wm.updateViewLayout(rootView!!, p) } catch (_: Throwable) {}
+        if (focusable) {
+            container.post {
+                editText.requestFocus()
+                val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                imm.showSoftInput(editText, InputMethodManager.SHOW_IMPLICIT)
+            }
+        } else {
+            // 收起输入法，把焦点交还给后台应用
+            try {
+                val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                imm.hideSoftInputFromWindow(editText.windowToken, 0)
+            } catch (_: Throwable) {}
+            editText.clearFocus()
+        }
+    }
+
     /** 按规则处理输入内容并复制到剪贴板。 */
     private fun processAndCopy() {
         val raw = editText.text?.toString()?.trim().orEmpty()
@@ -185,6 +214,8 @@ class OverlayInputService : Service() {
         val processed = TextProcessor.process(raw, config)
         val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         cm.setPrimaryClip(ClipData.newPlainText("ohoho", processed))
+        // 让出焦点，回到微信即可点击输入框粘贴
+        setFocusable(false)
         toast("已复制：$processed")
         AppLog.log("输入处理复制: $processed")
     }
