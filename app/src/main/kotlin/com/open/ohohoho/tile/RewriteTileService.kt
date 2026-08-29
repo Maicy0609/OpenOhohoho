@@ -12,7 +12,6 @@ class RewriteTileService : TileService() {
 
     override fun onClick() {
         super.onClick()
-        if (!isActive()) return
         try {
             if (isLocked()) {
                 unlockAndRun { launchRewrite() }
