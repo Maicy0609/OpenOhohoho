@@ -1,11 +1,24 @@
 name: Build APK
 
 # 触发：推送到 main / PR / 手动运行
+# 文档、规则集、许可证等不影响 APK 的改动，不自动触发构建
 on:
   push:
     branches: [ main ]
+    paths-ignore:
+      - 'README.md'
+      - 'LICENSE'
+      - 'rules/**'
+      - 'docs/**'
+      - '*.md'
   pull_request:
     branches: [ main ]
+    paths-ignore:
+      - 'README.md'
+      - 'LICENSE'
+      - 'rules/**'
+      - 'docs/**'
+      - '*.md'
   workflow_dispatch:
 
 jobs:
