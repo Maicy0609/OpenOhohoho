@@ -131,12 +131,12 @@ class QQAccessibilityService : AccessibilityService() {
             }
 
             TYPE_VIEW_CLICKED -> {
-                // 点击发送按钮：兜底处理一次
+                // 点击发送按钮：兜底处理一次（id 匹配 + 通用关键词识别）
                 val source = event.source
                 if (source != null) {
-                    val id = source.viewIdResourceName
+                    val isSend = source.viewIdResourceName in SEND_IDS || isSendButton(source)
                     source.recycle()
-                    if (id in SEND_IDS) {
+                    if (isSend) {
                         AppLog.log("点击发送，兜底处理")
                         doProcess(isFinal = true)
                     }
@@ -159,7 +159,17 @@ class QQAccessibilityService : AccessibilityService() {
         // 事件的 source 就是输入框节点本身（对微信尤其可靠）
         val source = event.source
         if (mode == CatConfig.MODE_REALTIME) {
-            doProcess(isFinal = false, source = source)
+            // 流式防抖：输入稳定 400ms 后再处理，语音/粘贴时避免反复改写
+            debounceHandler.removeCallbacksAndMessages(null)
+            val captured = source?.let { AccessibilityNodeInfo.obtain(it) }
+            debounceHandler.postDelayed({
+                try {
+                    doProcess(isFinal = false, source = captured)
+                } catch (t: Throwable) {
+                    AppLog.log("实时处理异常: ${t.message}")
+                }
+                captured?.recycle()
+            }, 400)
         } else {
             // 标点触发模式：仅当输入以标点结尾时处理
             val text = source?.text?.toString()
@@ -206,6 +216,12 @@ class QQAccessibilityService : AccessibilityService() {
 
             // 忽略"我们自己的写回"：当前文本恰好等于上次写入的内容 → 直接跳过，避免二次处理累积
             if (lastSet.isNotEmpty() && text == lastSet) {
+                node.recycle()
+                return
+            }
+
+            // 拦截官方提示词 / 占位短文本（发送后出现的短提示等）
+            if (text.trim().length < 2) {
                 node.recycle()
                 return
             }
@@ -294,6 +310,17 @@ class QQAccessibilityService : AccessibilityService() {
         if (s.isEmpty()) return false
         val c = s.last()
         return c in "，。！!？? "
+    }
+
+    /** 通用发送按钮识别：可点击 + 非输入框 + 类名像按钮 + 文本/内容描述含发送关键词。 */
+    private fun isSendButton(node: AccessibilityNodeInfo): Boolean {
+        if (!node.isClickable) return false
+        val cls = node.className?.toString() ?: return false
+        if (isEditTextClass(node)) return false
+        val text =
+            ((node.text?.toString() ?: "") + " " + (node.contentDescription?.toString() ?: "")).lowercase()
+        val looksLikeButton = cls.contains("Button") || cls.contains("ImageButton")
+        return looksLikeButton && SEND_KEYWORDS.any { text.contains(it, ignoreCase = true) }
     }
 
     /** 通过无障碍 action 写入文本并把光标放到 [cursorPos]；失败则用剪贴板粘贴兜底。 */
