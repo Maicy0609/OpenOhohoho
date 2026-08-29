@@ -48,7 +48,8 @@ class OverlayLogService : Service(), AppLog.Listener {
         if (rootView == null) showOverlay()
         AppLog.register(this)
         OverlayHelper.running = true
-        return START_STICKY
+        // NOT_STICKY：进程被杀后不自动重启（避免保活复活时又弹出日志悬浮窗）
+        return START_NOT_STICKY
     }
 
     private fun startAsForeground() {
