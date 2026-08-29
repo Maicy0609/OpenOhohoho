@@ -69,4 +69,7 @@ app/src/main/
 
 ## 许可
 
-仅供学习交流。请遵守腾讯 QQ 用户协议与当地法律法规，勿用于恶意用途。
+本项目基于 **GNU Affero General Public License v3.0 (AGPL-3.0)** 开源，详见 [LICENSE](LICENSE)。
+
+使用本项目请遵守腾讯 QQ / 微信用户协议与当地法律法规，勿用于恶意用途。
+
