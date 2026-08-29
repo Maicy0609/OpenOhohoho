@@ -70,21 +70,7 @@ object TextProcessor {
     fun stripAll(text: String, config: CatConfig): String {
         var result = text
 
-        // 1. 移除所有颜文字（长的优先，避免误删子串）
-        val emoticons = config.getActiveEmoticons()
-            .filter { it.isNotEmpty() }
-            .sortedByDescending { it.length }
-        for (e in emoticons) {
-            var idx = result.indexOf(e)
-            while (idx >= 0) {
-                var start = idx
-                if (start > 0 && result[start - 1] == ' ') start--
-                result = result.substring(0, start) + result.substring(idx + e.length)
-                idx = result.indexOf(e)
-            }
-        }
-
-        // 2. 逆向还原自定义替换规则（to→from，循环到不再变化，彻底折叠嵌套/变花的 meow）
+        // 1. 逆向还原自定义替换规则（to→from，循环到不再变化，彻底折叠嵌套/变花的 meow）
         //    注意顺序：先逆向（把被规则改花的部分还原），再删 meow/颜文字
         for ((from, to) in config.replacementRules) {
             if (from.isEmpty() || to.isEmpty() || to == from) continue
