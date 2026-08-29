@@ -21,6 +21,11 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.material3.Card
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -35,6 +40,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedCard
@@ -178,6 +184,67 @@ fun OpenOhohoScreen(viewModel: MainViewModel) {
 
     if (state.showAppPicker) {
         AppPickerDialog(state, viewModel)
+    }
+
+    if (state.showFirstLaunch) {
+        FirstLaunchDialog(onConfirm = { viewModel.completeFirstLaunch() })
+    }
+}
+
+/** 首次启动合规声明卡片：强制倒计时 3 秒后才允许关闭。 */
+@Composable
+private fun FirstLaunchDialog(onConfirm: () -> Unit) {
+    var seconds by remember { mutableIntStateOf(3) }
+    LaunchedEffect(Unit) {
+        while (seconds > 0) {
+            delay(1000)
+            seconds--
+        }
+    }
+
+    Dialog(
+        onDismissRequest = { /* 倒计时结束前不允许关闭 */ },
+        properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false),
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth().padding(24.dp),
+            shape = MaterialTheme.shapes.large,
+        ) {
+            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("欢迎使用 OpenOhoho", style = MaterialTheme.typography.titleLarge)
+                Divider()
+                Text("原作者（LaiNova_）", style = MaterialTheme.typography.titleSmall)
+                Text(
+                    "https://space.bilibili.com/3546580789495976",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Text("修改版作者（Maicy0609）", style = MaterialTheme.typography.titleSmall)
+                Text(
+                    "https://space.bilibili.com/630056484",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Divider()
+                Text(
+                    "任何付费提供本软件均是骗子，请立即举报，本软件完全开源免费",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+                Text(
+                    "所有二次分发者（例如网盘二次分发）必须公开原作者和修改作者的署名信息",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Spacer(Modifier.height(4.dp))
+                Button(
+                    onClick = onConfirm,
+                    enabled = seconds <= 0,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(if (seconds > 0) "我已了解（${seconds} 秒）" else "我已了解")
+                }
+            }
+        }
     }
 }
 

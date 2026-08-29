@@ -58,6 +58,7 @@ data class MainUiState(
     val showTestDialog: Boolean = false,
     val testResult: String = "",
     val showConfirmEnable: Boolean = false,
+    val showFirstLaunch: Boolean = false,
 )
 
 /**
@@ -87,6 +88,18 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         refreshStatus()
         refreshLocalRuleSets()
         if (auto) maybeAutoEnable()
+
+        // 首次启动：显示合规声明卡片
+        val firstLaunchDone = ctx.getSharedPreferences("meta", Context.MODE_PRIVATE)
+            .getBoolean("first_launch_done", false)
+        _ui.value = _ui.value.copy(showFirstLaunch = !firstLaunchDone)
+    }
+
+    /** 完成首次启动声明，记录并关闭。 */
+    fun completeFirstLaunch() {
+        ctx.getSharedPreferences("meta", Context.MODE_PRIVATE)
+            .edit().putBoolean("first_launch_done", true).apply()
+        _ui.value = _ui.value.copy(showFirstLaunch = false)
     }
 
     // ---------- 状态辅助 ----------
