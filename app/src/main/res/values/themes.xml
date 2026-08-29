@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.OpenOhoho" parent="Theme.Material3.DayNight.NoActionBar" />
+    <!-- 窗口外壳主题（Compose 自身负责浅/深色与 Material3 配色）。
+         使用平台主题，避免依赖 com.google.android.material。 -->
+    <style name="Theme.OpenOhoho" parent="android:Theme.Material.Light.NoActionBar" />
 </resources>
