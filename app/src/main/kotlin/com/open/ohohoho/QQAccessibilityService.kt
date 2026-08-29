@@ -6,9 +6,12 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import android.view.accessibility.AccessibilityWindowInfo
 import com.open.ohohoho.overlay.OverlayHelper
 import com.open.ohohoho.util.AppLog
 
@@ -38,6 +41,26 @@ class QQAccessibilityService : AccessibilityService() {
             "com.tencent.mm:id/aa0",                // 微信发送按钮(变体)
         )
 
+        // 通用发送按钮识别关键词（配合 isSendButton）
+        private val SEND_KEYWORDS = listOf("发送", "送出", "提交", "send", "submit", "enter", "➤")
+
+        // 可编辑输入节点的类名兜底（覆盖 WebView / Compose / Flutter 输入框）
+        private val EDIT_TEXT_CLASSES = listOf("EditText", "TextInput", "TextField")
+
+        // 默认排除包名（输入法 / 桌面 / 系统设置等），防止误改写
+        private val DEFAULT_EXCLUDE = setOf(
+            // 输入法
+            "com.android.inputmethod.latin", "com.google.android.inputmethod.latin",
+            "com.sohu.inputmethod.sogou", "com.tencent.qqpinyin", "com.baidu.input",
+            "com.android.inputmethod.pinyin", "com.iflytek.inputmethod",
+            // 桌面启动器
+            "com.android.launcher", "com.android.launcher3", "com.google.android.apps.nexuslauncher",
+            "com.miui.home", "com.huawei.android.launcher", "com.oppo.launcher",
+            "com.vivo.launcher", "com.sec.android.app.launcher",
+            // 系统设置 / 系统界面
+            "com.android.settings", "com.android.systemui", "com.android.permissioncontroller",
+        )
+
         // 事件类型常量
         private const val TYPE_WINDOW_STATE_CHANGED = 0x00000020
         private const val TYPE_VIEW_CLICKED = 0x00000001
@@ -58,6 +81,7 @@ class QQAccessibilityService : AccessibilityService() {
     private var lastWriteTime = 0L
     private var cachedConfig: CatConfig? = null
     private var pendingEmoticon: String? = null // 当前消息稳定使用的颜文字（避免循环）
+    private val debounceHandler = Handler(Looper.getMainLooper()) // 流式输入防抖
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -309,25 +333,55 @@ class QQAccessibilityService : AccessibilityService() {
         return null
     }
 
-    /** 按黑白名单判断是否处理该包名（每次读最新配置，保证改动即时生效）。 */
+    /** 按黑白名单 + 默认排除判断是否处理该包名（每次读最新配置，保证改动即时生效）。 */
     private fun shouldProcess(pkg: String): Boolean {
+        // 永远不处理自身包名（防止改写配置界面自己的输入框）
+        if (pkg == packageName) return false
+        // 默认排除输入法 / 桌面 / 系统设置等
+        if (pkg in DEFAULT_EXCLUDE) return false
+
         val cfg = CatConfig.load(this)
         cachedConfig = cfg
         return if (cfg.isWhitelistMode) pkg in cfg.managedPackages
                else pkg !in cfg.managedPackages
     }
 
-    /** 定位聊天输入框：优先按已知 id 精确匹配（QQ/微信），兜底找第一个可见可编辑节点。 */
+    /** 定位聊天输入框：优先按已知 id 精确匹配（QQ/微信），否则跨窗口找可编辑节点（跳过输入法窗口）。 */
     private fun findInputNode(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
         for (id in INPUT_IDS) {
             findNodeById(root, id)?.let { return it }
         }
-        return findEditable(root)
+        return findEditableAcrossWindows()
     }
 
-    /** 查找第一个「可见」的可编辑节点（避免命中隐藏控件 / 搜索框等）。 */
+    /** 遍历所有窗口查找输入框，跳过输入法/无障碍覆盖层窗口（键盘弹出时不被 IME 抢占）。 */
+    private fun findEditableAcrossWindows(): AccessibilityNodeInfo? {
+        return try {
+            for (w in getWindows()) {
+                val type = w.type
+                if (type == AccessibilityWindowInfo.TYPE_INPUT_METHOD ||
+                    type == AccessibilityWindowInfo.TYPE_ACCESSIBILITY_OVERLAY
+                ) continue
+                val root = w.root ?: continue
+                val found = findEditable(root)
+                root.recycle()
+                if (found != null) return found
+            }
+            null
+        } catch (t: Throwable) {
+            null
+        }
+    }
+
+    /**
+     * 查找输入框节点：跳过密码框，匹配可编辑节点或 EditText/TextInput/TextField 类名；
+     * 优先返回「已聚焦」的可编辑节点。
+     */
     private fun findEditable(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
-        if (root.isEditable && root.isVisibleToUser) return AccessibilityNodeInfo.obtain(root)
+        val isEdit = root.isEditable || isEditTextClass(root)
+        if (isEdit && !root.isPassword && root.isVisibleToUser) {
+            return AccessibilityNodeInfo.obtain(root)
+        }
         for (i in 0 until root.childCount) {
             val child = root.getChild(i) ?: continue
             val found = findEditable(child)
@@ -335,5 +389,10 @@ class QQAccessibilityService : AccessibilityService() {
             if (found != null) return found
         }
         return null
+    }
+
+    private fun isEditTextClass(node: AccessibilityNodeInfo): Boolean {
+        val cls = node.className?.toString() ?: return false
+        return EDIT_TEXT_CLASSES.any { cls.contains(it) }
     }
 }

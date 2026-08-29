@@ -226,7 +226,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun openQuickSettingsTiles() {
         try {
             ctx.startActivity(
-                Intent(Settings.ACTION_QUICK_SETTINGS_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                // 打开"编辑快捷设置"（添加磁贴）页面；该 action 无公开常量，用字面量
+                Intent("android.settings.action.QUICK_SETTINGS_SETTINGS").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             )
         } catch (_: Throwable) {
             toast("无法打开快捷设置编辑")
