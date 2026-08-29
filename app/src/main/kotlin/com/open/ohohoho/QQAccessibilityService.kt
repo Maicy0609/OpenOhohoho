@@ -316,7 +316,7 @@ class QQAccessibilityService : AccessibilityService() {
         sb.append("\n== getWindows() ==")
         try {
             for (w in getWindows()) {
-                sb.append("\n[window] type=${w.type} layer=${w.layerInPixels}")
+                sb.append("\n[window] type=${w.type} layer=${w.layer}")
                 val r = w.root ?: continue
                 walkNodes(r, sb, 1)
                 r.recycle()
