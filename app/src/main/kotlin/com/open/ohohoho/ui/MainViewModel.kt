@@ -26,13 +26,20 @@ sealed interface OnlineRuleState {
     data class Error(val msg: String) : OnlineRuleState
 }
 
+/** 已安装应用信息（用于黑白名单勾选）。 */
+data class AppInfo(val label: String, val packageName: String)
+
 /** 主界面 UI 状态。 */
 data class MainUiState(
     val config: CatConfig = CatConfig(),
     val rulesText: String = "",
+    val meowText: String = "",
     val emoticonsText: String = "",
     val whitelistMode: Boolean = true,
     val packagesText: String = "",
+    val installedApps: List<AppInfo> = emptyList(),
+    val showAppPicker: Boolean = false,
+    val appSearchQuery: String = "",
     val accessibilityEnabled: Boolean = false,
     val shizukuAvailable: Boolean = false,
     val shizukuGranted: Boolean = false,
@@ -66,6 +73,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         _ui.value = _ui.value.copy(
             config = config,
             rulesText = config.replacementRules.joinToString("\n") { "${it.first}=${it.second}" },
+            meowText = config.meowText,
             emoticonsText = config.customEmoticons.joinToString("\n"),
             whitelistMode = config.isWhitelistMode,
             packagesText = config.managedPackages.joinToString("\n"),
@@ -120,6 +128,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         persist()
     }
 
+    fun updateMeowText(t: String) {
+        _ui.value = _ui.value.copy(meowText = t)
+        config = config.copy(meowText = t)
+        persist()
+    }
+
     fun toggleMode(whitelist: Boolean) {
         config = config.copy(isWhitelistMode = whitelist)
         _ui.value = _ui.value.copy(whitelistMode = whitelist)
@@ -131,6 +145,43 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         config = config.copy(
             managedPackages = t.split("\n").map { it.trim() }.filter { it.isNotEmpty() }
         )
+        persist()
+    }
+
+    // ---------- 应用选择器（黑白名单可视化勾选） ----------
+    fun openAppPicker() {
+        val pm = ctx.packageManager
+        val apps = try {
+            pm.getInstalledApplications(0)
+                .map { ai ->
+                    val label = try { pm.getApplicationLabel(ai)?.toString() ?: ai.packageName }
+                    catch (t: Throwable) { ai.packageName }
+                    AppInfo(label, ai.packageName)
+                }
+                .sortedBy { it.label.lowercase() }
+        } catch (t: Throwable) {
+            emptyList()
+        }
+        _ui.value = _ui.value.copy(installedApps = apps, showAppPicker = true)
+    }
+
+    fun closeAppPicker() {
+        _ui.value = _ui.value.copy(showAppPicker = false, appSearchQuery = "")
+    }
+
+    fun updateAppSearchQuery(q: String) {
+        _ui.value = _ui.value.copy(appSearchQuery = q)
+    }
+
+    fun toggleAppPackage(pkg: String) {
+        val cur = config.managedPackages.toMutableList()
+        if (pkg in cur) cur.remove(pkg) else cur.add(pkg)
+        config = config.copy(managedPackages = cur)
+        persist()
+    }
+
+    fun clearPackages() {
+        config = config.copy(managedPackages = emptyList())
         persist()
     }
 
@@ -240,12 +291,18 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         if (idx < 0 || idx >= sets.size) { toast("请先「刷新」并选择规则集"); return }
         val rs = sets[idx]
         toast("正在应用 ${rs.name}…")
-        RuleManager.fetchRule(rs) { (name, rules) ->
-            if (rules.isEmpty()) { toast("解析失败或规则为空"); return@fetchRule }
-            _ui.value = _ui.value.copy(rulesText = rules.joinToString("\n") { "${it.first}=${it.second}" })
-            config = config.copy(replacementRules = rules)
+        RuleManager.fetchRule(rs) { content ->
+            if (content.rules.isEmpty()) { toast("解析失败或规则为空"); return@fetchRule }
+            _ui.value = _ui.value.copy(
+                rulesText = content.rules.joinToString("\n") { "${it.first}=${it.second}" },
+                meowText = content.meowText ?: config.meowText,
+            )
+            config = config.copy(
+                replacementRules = content.rules,
+                meowText = content.meowText ?: config.meowText,
+            )
             persist()
-            toast("已应用规则集${if (name != null) "：$name" else ""}（${rules.size} 条规则）")
+            toast("已应用规则集${if (content.name != null) "：${content.name}" else ""}（${content.rules.size} 条规则）")
         }
     }
 
@@ -260,7 +317,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun saveLocal() {
         if (config.replacementRules.isEmpty()) { toast("当前规则为空，无法保存"); return }
-        val ok = LocalRuleManager.save(ctx, _ui.value.ruleSetName, config.replacementRules)
+        val ok = LocalRuleManager.save(ctx, _ui.value.ruleSetName, config.replacementRules, config.meowText)
         toast(if (ok) "已保存到本地规则集" else "保存失败")
         refreshLocalRuleSets()
     }
@@ -269,12 +326,18 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val idx = _ui.value.localSelected
         val names = _ui.value.localRuleSets
         if (idx < 0 || idx >= names.size) { toast("请先「刷新」并选择本地规则集"); return }
-        val (name, rules) = LocalRuleManager.load(ctx, names[idx])
-        if (rules.isEmpty()) { toast("规则为空或解析失败"); return }
-        _ui.value = _ui.value.copy(rulesText = rules.joinToString("\n") { "${it.first}=${it.second}" })
-        config = config.copy(replacementRules = rules)
+        val content = LocalRuleManager.load(ctx, names[idx])
+        if (content.rules.isEmpty()) { toast("规则为空或解析失败"); return }
+        _ui.value = _ui.value.copy(
+            rulesText = content.rules.joinToString("\n") { "${it.first}=${it.second}" },
+            meowText = content.meowText ?: config.meowText,
+        )
+        config = config.copy(
+            replacementRules = content.rules,
+            meowText = content.meowText ?: config.meowText,
+        )
         persist()
-        toast("已加载${if (name != null) "：$name" else ""}（${rules.size} 条规则）")
+        toast("已加载${if (content.name != null) "：${content.name}" else ""}（${content.rules.size} 条规则）")
     }
 
     fun deleteLocal() {

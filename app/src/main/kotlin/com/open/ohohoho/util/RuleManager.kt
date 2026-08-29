@@ -19,6 +19,13 @@ object RuleManager {
 
     data class RuleSet(val name: String, val contentUrl: String)
 
+    /** 解析出的规则集内容。 */
+    data class RuleContent(
+        val name: String?,
+        val meowText: String?,
+        val rules: List<Pair<String, String>>,
+    )
+
     /** 拉取仓库 rules/ 目录下的 .toml 规则集列表。 */
     fun fetchRuleSets(callback: (List<RuleSet>) -> Unit) {
         Thread {
@@ -51,8 +58,8 @@ object RuleManager {
         }.start()
     }
 
-    /** 下载并解析单个 .toml 规则集，返回 (名称, 替换规则列表)。 */
-    fun fetchRule(rs: RuleSet, callback: (Pair<String?, List<Pair<String, String>>>) -> Unit) {
+    /** 下载并解析单个 .toml 规则集，返回 [RuleContent]。 */
+    fun fetchRule(rs: RuleSet, callback: (RuleContent) -> Unit) {
         Thread {
             val result = try {
                 val conn = URL(rs.contentUrl).openConnection() as HttpURLConnection
@@ -62,7 +69,7 @@ object RuleManager {
                 conn.disconnect()
                 parseToml(text)
             } catch (t: Throwable) {
-                null to emptyList()
+                RuleContent(null, null, emptyList())
             }
             MAIN.post { callback(result) }
         }.start()
@@ -70,11 +77,13 @@ object RuleManager {
 
     /**
      * 解析简单 TOML：
-     *  - `name = "xx"`  -> 规则集名
+     *  - `name = "xx"`   -> 规则集名
+     *  - `meow = "xx"`   -> 断句末尾文字
      *  - `"key" = "value"` 或 `key = "value"` -> 替换规则
      */
-    fun parseToml(text: String): Pair<String?, List<Pair<String, String>>> {
+    fun parseToml(text: String): RuleContent {
         var name: String? = null
+        var meow: String? = null
         val rules = mutableListOf<Pair<String, String>>()
         for (line in text.lines()) {
             val t = line.trim()
@@ -82,6 +91,10 @@ object RuleManager {
 
             if (t.startsWith("name")) {
                 Regex("^name\\s*=\\s*\"(.*?)\"$").find(t)?.let { name = it.groupValues[1] }
+                continue
+            }
+            if (t.startsWith("meow")) {
+                Regex("^meow\\s*=\\s*\"(.*?)\"$").find(t)?.let { meow = it.groupValues[1] }
                 continue
             }
             val m = Regex("^\"(.*?)\"\\s*=\\s*\"(.*?)\"$").find(t)
@@ -92,6 +105,6 @@ object RuleManager {
                 if (from.isNotEmpty() && to.isNotEmpty()) rules.add(from to to)
             }
         }
-        return name to rules
+        return RuleContent(name, meow, rules)
     }
 }

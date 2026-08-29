@@ -18,13 +18,22 @@ object LocalRuleManager {
             ?.map { it.name }?.sorted() ?: emptyList()
 
     /** 把规则保存为本地 .toml 文件。 */
-    fun save(context: Context, name: String, rules: List<Pair<String, String>>): Boolean {
+    fun save(
+        context: Context,
+        name: String,
+        rules: List<Pair<String, String>>,
+        meowText: String? = null,
+    ): Boolean {
         val base = name.trim().ifEmpty { "rule_${System.currentTimeMillis()}" }
         val fileName = if (base.endsWith(".toml")) base else "$base.toml"
         return try {
             val sb = StringBuilder()
             sb.append("# OpenOhoho 本地规则集\n")
-            sb.append("name = \"${base.removeSuffix(".toml")}\"\n\n")
+            sb.append("name = \"${base.removeSuffix(".toml")}\"\n")
+            if (meowText != null && meowText.isNotEmpty()) {
+                sb.append("meow = \"$meowText\"\n")
+            }
+            sb.append("\n")
             for ((from, to) in rules) {
                 sb.append("\"$from\" = \"$to\"\n")
             }
@@ -35,12 +44,12 @@ object LocalRuleManager {
         }
     }
 
-    /** 加载本地 .toml 规则集，返回 (名称, 替换规则)。 */
-    fun load(context: Context, fileName: String): Pair<String?, List<Pair<String, String>>> {
+    /** 加载本地 .toml 规则集，返回 [RuleManager.RuleContent]。 */
+    fun load(context: Context, fileName: String): RuleManager.RuleContent {
         return try {
             RuleManager.parseToml(File(dir(context), fileName).readText())
         } catch (t: Throwable) {
-            null to emptyList()
+            RuleManager.RuleContent(null, null, emptyList())
         }
     }
 

@@ -10,6 +10,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <!-- 在线拉取规则集 -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- 读取已安装应用列表（用于黑白名单可视化勾选） -->
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
     <!-- Shizuku 提权所需权限 -->
     <uses-permission android:name="moe.shizuku.manager.permission.API_V23" />
 

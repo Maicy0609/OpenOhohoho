@@ -28,7 +28,7 @@ object TextProcessor {
         }
         if (config.enableWoToBenmiao) out = out.replace("我", "我..我我")
         if (config.enableNiToZhuren) out = out.replace("你", "主..主人♥")
-        if (config.enableMeow) out = addMeow(out)
+        if (config.enableMeow) out = addMeow(out, config.meowText)
         if (config.enableRandomEmoticon) {
             val emoji = getRandomEmoticon(config)
             if (emoji.isNotEmpty()) out = "$out $emoji"
@@ -37,9 +37,9 @@ object TextProcessor {
     }
 
     /**
-     * 断句：在句号、叹号、问号等处分句，每句末尾追加"哦齁齁齁♥"。
+     * 断句：在句号、叹号、问号等处分句，每句末尾追加 [meowText]（可配置）。
      */
-    fun addMeow(text: String): String {
+    fun addMeow(text: String, meowText: String): String {
         val separators = SENTENCE_SPLIT_PATTERN.findAll(text)
             .map { it.groupValues[1] }
             .toList()
@@ -50,7 +50,7 @@ object TextProcessor {
         for (i in segments.indices) {
             val seg = segments[i].trim()
             if (seg.isNotEmpty()) {
-                sb.append(seg).append("哦齁齁齁♥")
+                sb.append(seg).append(meowText)
                 if (i < separators.size) sb.append(separators[i])
             }
         }
@@ -84,10 +84,12 @@ object TextProcessor {
             }
         }
 
-        // 2. 用占位符保护"我...我我"，再删掉装饰符号与"哦齁齁齁♥"，最后还原
+        // 2. 用占位符保护"我...我我"，再删掉装饰符号与 meowText，最后还原
         result = result.replace("我...我我", "\u0000BM\u0001")
         result = result.replace(DECORATION_STRIP, " ")
-        result = result.replace("哦齁齁齁♥", "")
+        if (config.meowText.isNotEmpty()) {
+            result = result.replace(config.meowText, "")
+        }
         result = result.replace("\u0000BM\u0001", "我...我我")
 
         return result.trim()

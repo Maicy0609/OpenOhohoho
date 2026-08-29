@@ -14,15 +14,20 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedCard
@@ -30,6 +35,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -37,9 +43,11 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -52,8 +60,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.open.ohohoho.CatConfig
 
 /** 底部导航的三个页面。 */
@@ -137,6 +148,84 @@ fun OpenOhohoScreen(viewModel: MainViewModel) {
                 TextButton(onClick = { viewModel.setConfirmEnable(false) }) { Text("取消") }
             },
         )
+    }
+
+    if (state.showAppPicker) {
+        AppPickerDialog(state, viewModel)
+    }
+}
+
+/** 全屏应用选择对话框：读取已安装应用，用复选框勾选黑白名单。 */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AppPickerDialog(state: MainUiState, vm: MainViewModel) {
+    Dialog(
+        onDismissRequest = { vm.closeAppPicker() },
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
+            Column(Modifier.fillMaxSize()) {
+                TopAppBar(
+                    title = { Text("选择应用（${if (state.whitelistMode) "白名单" else "黑名单"}）") },
+                    navigationIcon = {
+                        IconButton(onClick = { vm.closeAppPicker() }) {
+                            Icon(Icons.Filled.Close, contentDescription = "关闭")
+                        }
+                    },
+                    actions = {
+                        TextButton(onClick = { vm.clearPackages() }) { Text("清空") }
+                    },
+                )
+                OutlinedTextField(
+                    value = state.appSearchQuery,
+                    onValueChange = { vm.updateAppSearchQuery(it) },
+                    placeholder = { Text("搜索应用") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                )
+                LazyColumn(Modifier.weight(1f)) {
+                    val q = state.appSearchQuery.trim().lowercase()
+                    val filtered = state.installedApps.filter {
+                        q.isEmpty() || it.label.lowercase().contains(q) ||
+                            it.packageName.lowercase().contains(q)
+                    }
+                    items(filtered, key = { it.packageName }) { app ->
+                        val checked = app.packageName in state.config.managedPackages
+                        Row(
+                            Modifier.fillMaxWidth()
+                                .clickable { vm.toggleAppPackage(app.packageName) }
+                                .padding(horizontal = 16.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    app.label,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Text(
+                                    app.packageName,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                            Checkbox(
+                                checked = checked,
+                                onCheckedChange = { vm.toggleAppPackage(app.packageName) },
+                            )
+                        }
+                    }
+                }
+                Text(
+                    "已选 ${state.config.managedPackages.size} 个",
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(16.dp),
+                )
+            }
+        }
     }
 }
 
@@ -243,7 +332,14 @@ private fun SettingsPage(state: MainUiState, vm: MainViewModel) {
         ElevatedCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("功能开关", style = MaterialTheme.typography.titleMedium)
-                SwitchRow("断句加哦齁齁齁♥", state.config.enableMeow) { vm.toggleMeow(it) }
+                SwitchRow("断句添加", state.config.enableMeow) { vm.toggleMeow(it) }
+                OutlinedTextField(
+                    value = state.meowText,
+                    onValueChange = { vm.updateMeowText(it) },
+                    label = { Text("断句末尾文字") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 SwitchRow("末尾随机颜文字", state.config.enableRandomEmoticon) { vm.toggleEmoticon(it) }
             }
         }
@@ -269,12 +365,12 @@ private fun SettingsPage(state: MainUiState, vm: MainViewModel) {
                         label = { Text("黑名单") },
                     )
                 }
-                OutlinedTextField(
-                    value = state.packagesText,
-                    onValueChange = { vm.updatePackagesText(it) },
-                    placeholder = { Text("每行一个包名，如\ncom.tencent.mobileqq") },
-                    modifier = Modifier.fillMaxWidth().height(120.dp),
-                )
+                FilledTonalButton(
+                    onClick = { vm.openAppPicker() },
+                    Modifier.fillMaxWidth(),
+                ) {
+                    Text("选择应用（已选 ${state.config.managedPackages.size} 个）")
+                }
             }
         }
 

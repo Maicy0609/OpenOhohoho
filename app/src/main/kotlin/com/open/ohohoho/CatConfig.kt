@@ -11,6 +11,7 @@ data class CatConfig(
     var enableWoToBenmiao: Boolean = false,  // 我 -> 我..我我（已并入规则集）
     var enableNiToZhuren: Boolean = false,   // 你 -> 主..主人♥（已并入规则集）
     var enableRandomEmoticon: Boolean = true,// 末尾追加随机猫咪颜文字
+    var meowText: String = "哦齁齁齁♥",        // 断句末尾追加的文字
     var processingMode: String = MODE_REALTIME, // 默认实时修改
     var customEmoticons: Array<String> = emptyArray(),
     var replacementRules: List<Pair<String, String>> = emptyList(), // 自定义替换规则
@@ -28,6 +29,7 @@ data class CatConfig(
             .putBoolean("enable_wo", enableWoToBenmiao)
             .putBoolean("enable_ni", enableNiToZhuren)
             .putBoolean("enable_emoticon", enableRandomEmoticon)
+            .putString("meow_text", meowText)
             .putString("processing_mode", processingMode)
             .putString("custom_emoticons", customEmoticons.joinToString("\n"))
             .putString("custom_rules", replacementRules.joinToString("\n") { "${it.first}=${it.second}" })
@@ -57,6 +59,7 @@ data class CatConfig(
                 enableWoToBenmiao = sp.getBoolean("enable_wo", false),
                 enableNiToZhuren = sp.getBoolean("enable_ni", false),
                 enableRandomEmoticon = sp.getBoolean("enable_emoticon", true),
+                meowText = sp.getString("meow_text", "哦齁齁齁♥") ?: "哦齁齁齁♥",
                 processingMode = sp.getString("processing_mode", MODE_REALTIME)
                     ?: MODE_REALTIME,
                 customEmoticons = sp.getString("custom_emoticons", "")
