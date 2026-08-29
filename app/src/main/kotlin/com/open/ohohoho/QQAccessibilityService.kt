@@ -57,6 +57,7 @@ class QQAccessibilityService : AccessibilityService() {
     private var processing = false
     private var lastWriteTime = 0L
     private var cachedConfig: CatConfig? = null
+    private var pendingEmoticon: String? = null // 当前消息稳定使用的颜文字（避免循环）
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -101,6 +102,7 @@ class QQAccessibilityService : AccessibilityService() {
                 userOriginal = ""
                 lastSet = ""
                 lastWriteTime = 0L
+                pendingEmoticon = null
                 cachedConfig = CatConfig.load(this)
             }
 
@@ -173,6 +175,7 @@ class QQAccessibilityService : AccessibilityService() {
             if (text.trim().isEmpty()) {
                 userOriginal = ""
                 lastSet = ""
+                pendingEmoticon = null
                 node.recycle()
                 return
             }
@@ -193,26 +196,37 @@ class QQAccessibilityService : AccessibilityService() {
                 return
             }
 
-            // 生成目标文本
-            var cfgForProcess = config
-            // 打字过程中保持确定性（临时关闭随机颜文字），避免写回触发的事件反复重写/闪烁；
-            // 仅在最终（点击发送）时附加随机颜文字
-            if (!isFinal && config.enableRandomEmoticon) {
-                cfgForProcess = config.copy(enableRandomEmoticon = false)
-            }
-            val target = TextProcessor.process(stripped, cfgForProcess)
+            // 生成目标文本（先不含随机颜文字，颜文字单独稳定追加）
+            val cfgBase = config.copy(enableRandomEmoticon = false)
+            val target = TextProcessor.process(stripped, cfgBase)
 
-            if (target == text) {
+            // 追加"稳定"颜文字：一条消息内固定同一个，避免写回触发的事件反复换字导致循环
+            var finalTarget = target
+            if (config.enableRandomEmoticon) {
+                if (pendingEmoticon == null) {
+                    pendingEmoticon = TextProcessor.getRandomEmoticon(config).ifEmpty { null }
+                }
+                if (pendingEmoticon != null) {
+                    finalTarget = "$target ${pendingEmoticon}"
+                }
+            }
+
+            if (finalTarget == text) {
                 node.recycle()
                 return
             }
 
-            AppLog.log("写入: raw=$text → target=$target")
-            if (isFinal && config.enableRandomEmoticon && cfgForProcess.enableRandomEmoticon) {
-                AppLog.log("本次发送已追加随机颜文字")
+            AppLog.log("写入: raw=$text → target=$finalTarget")
+
+            // 光标移到颜文字前面，让后续输入插到颜文字之前（曲线救国）
+            var cursorPos = finalTarget.length
+            val emo = pendingEmoticon
+            if (emo != null && finalTarget.endsWith(emo)) {
+                cursorPos = finalTarget.length - emo.length - 1 // 前面还留了一个空格
             }
-            if (setText(node, target)) {
-                lastSet = target
+
+            if (setText(node, finalTarget, cursorPos)) {
+                lastSet = finalTarget
                 lastWriteTime = System.currentTimeMillis()
             }
             node.recycle()
@@ -252,16 +266,17 @@ class QQAccessibilityService : AccessibilityService() {
         return c in "，。！!？? "
     }
 
-    /** 通过无障碍 action 写入文本并设置光标到末尾；失败则用剪贴板粘贴兜底。 */
-    private fun setText(node: AccessibilityNodeInfo, text: String): Boolean {
+    /** 通过无障碍 action 写入文本并把光标放到 [cursorPos]；失败则用剪贴板粘贴兜底。 */
+    private fun setText(node: AccessibilityNodeInfo, text: String, cursorPos: Int = text.length): Boolean {
         // 方法1：ACTION_SET_TEXT
         val setBundle = Bundle().apply {
             putCharSequence(ARG_SET_TEXT, text)
         }
         if (node.performAction(ACTION_SET_TEXT, setBundle)) {
+            val pos = cursorPos.coerceIn(0, text.length)
             val selBundle = Bundle().apply {
-                putInt(ARG_SEL_START, text.length)
-                putInt(ARG_SEL_END, text.length)
+                putInt(ARG_SEL_START, pos)
+                putInt(ARG_SEL_END, pos)
             }
             node.performAction(ACTION_SET_SELECTION, selBundle)
             return true
