@@ -84,23 +84,41 @@ object TextProcessor {
             }
         }
 
-        // 2. 移除断句文字（meowText）
+        // 2. 逆向还原自定义替换规则（to→from，循环到不再变化，彻底折叠嵌套/变花的 meow）
+        //    注意顺序：先逆向（把被规则改花的部分还原），再删 meow/颜文字
+        for ((from, to) in config.replacementRules) {
+            if (from.isEmpty() || to.isEmpty() || to == from) continue
+            while (true) {
+                val next = result.replace(to, from)
+                if (next == result) break
+                result = next
+            }
+        }
+
+        // 3. 内置 我/你 规则逆向
+        if (config.enableWoToBenmiao) result = result.replace("我..我我", "我")
+        if (config.enableNiToZhuren) result = result.replace("主..主人♥", "你")
+
+        // 4. 移除断句文字（meowText）
         if (config.meowText.isNotEmpty()) {
             result = result.replace(config.meowText, "")
         }
 
-        // 3. 逆向还原自定义替换规则（to→from，逆序）——关键：否则再次处理会累积爆炸
-        for ((from, to) in config.replacementRules.asReversed()) {
-            if (from.isNotEmpty() && to.isNotEmpty()) {
-                result = result.replace(to, from)
+        // 5. 移除颜文字（长的优先）
+        val emoticons = config.getActiveEmoticons()
+            .filter { it.isNotEmpty() }
+            .sortedByDescending { it.length }
+        for (e in emoticons) {
+            var idx = result.indexOf(e)
+            while (idx >= 0) {
+                var start = idx
+                if (start > 0 && result[start - 1] == ' ') start--
+                result = result.substring(0, start) + result.substring(idx + e.length)
+                idx = result.indexOf(e)
             }
         }
 
-        // 4. 内置 我/你 规则逆向
-        if (config.enableWoToBenmiao) result = result.replace("我..我我", "我")
-        if (config.enableNiToZhuren) result = result.replace("主..主人♥", "你")
-
-        // 5. 清理连续符号装饰
+        // 6. 清理连续符号装饰
         result = result.replace(DECORATION_STRIP, " ")
 
         return result.trim()
