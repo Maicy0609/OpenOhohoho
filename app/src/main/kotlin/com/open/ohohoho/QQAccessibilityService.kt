@@ -69,8 +69,9 @@ class QQAccessibilityService : AccessibilityService() {
                 AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS or
                 AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
             notificationTimeout = 50
-            // 白名单：只监听清单内应用；黑名单：监听所有应用，代码里再过滤
-            packageNames = if (cfg.isWhitelistMode) cfg.managedPackages.toTypedArray() else null
+            // 监听所有应用，由 shouldProcess() 按最新配置即时过滤，
+            // 从而保证黑白名单改动立即生效（无需重启服务）
+            packageNames = null
         }
         setServiceInfo(info)
 
@@ -91,6 +92,8 @@ class QQAccessibilityService : AccessibilityService() {
 
         when (event.eventType) {
             TYPE_WINDOW_STATE_CHANGED -> {
+                // 记录跳转到的应用，及按黑白名单判定是处理还是跳过
+                AppLog.log("窗口切换 -> $pkg（${if (shouldProcess(pkg)) "处理" else "跳过"}）")
                 // 窗口切换：重置状态并重新加载配置
                 processing = false
                 userOriginal = ""
@@ -280,9 +283,10 @@ class QQAccessibilityService : AccessibilityService() {
         return null
     }
 
-    /** 按黑白名单判断是否处理该包名。 */
+    /** 按黑白名单判断是否处理该包名（每次读最新配置，保证改动即时生效）。 */
     private fun shouldProcess(pkg: String): Boolean {
-        val cfg = cachedConfig ?: CatConfig.load(this).also { cachedConfig = it }
+        val cfg = CatConfig.load(this)
+        cachedConfig = cfg
         return if (cfg.isWhitelistMode) pkg in cfg.managedPackages
                else pkg !in cfg.managedPackages
     }
