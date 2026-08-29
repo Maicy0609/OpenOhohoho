@@ -34,8 +34,8 @@ import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.ElevatedCardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
@@ -46,7 +46,6 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
-import androidx.compose.material3.OutlinedCardDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -285,7 +284,7 @@ private fun ServicePage(state: MainUiState, vm: MainViewModel) {
     PageColumn {
         ElevatedCard(
             modifier = Modifier.fillMaxWidth(),
-            colors = ElevatedCardDefaults.elevatedCardColors(
+            colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)
             ),
         ) {
@@ -306,7 +305,7 @@ private fun ServicePage(state: MainUiState, vm: MainViewModel) {
 
         ElevatedCard(
             modifier = Modifier.fillMaxWidth(),
-            colors = ElevatedCardDefaults.elevatedCardColors(
+            colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)
             ),
         ) {
@@ -366,7 +365,7 @@ private fun SettingsPage(state: MainUiState, vm: MainViewModel) {
         // 处理模式
         ElevatedCard(
             modifier = Modifier.fillMaxWidth(),
-            colors = ElevatedCardDefaults.elevatedCardColors(
+            colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)
             ),
         ) {
@@ -395,7 +394,7 @@ private fun SettingsPage(state: MainUiState, vm: MainViewModel) {
         // 功能开关
         ElevatedCard(
             modifier = Modifier.fillMaxWidth(),
-            colors = ElevatedCardDefaults.elevatedCardColors(
+            colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)
             ),
         ) {
@@ -416,7 +415,7 @@ private fun SettingsPage(state: MainUiState, vm: MainViewModel) {
         // 目标应用（黑白名单）
         ElevatedCard(
             modifier = Modifier.fillMaxWidth(),
-            colors = ElevatedCardDefaults.elevatedCardColors(
+            colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)
             ),
         ) {
@@ -451,7 +450,7 @@ private fun SettingsPage(state: MainUiState, vm: MainViewModel) {
         // 自定义颜文字
         OutlinedCard(
             modifier = Modifier.fillMaxWidth(),
-            colors = OutlinedCardDefaults.outlinedCardColors(
+            colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)
             ),
         ) {
@@ -469,7 +468,7 @@ private fun SettingsPage(state: MainUiState, vm: MainViewModel) {
         // 自定义替换规则
         OutlinedCard(
             modifier = Modifier.fillMaxWidth(),
-            colors = OutlinedCardDefaults.outlinedCardColors(
+            colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)
             ),
         ) {
@@ -512,7 +511,7 @@ private fun RulesPage(state: MainUiState, vm: MainViewModel) {
         // 在线规则集
         OutlinedCard(
             modifier = Modifier.fillMaxWidth(),
-            colors = OutlinedCardDefaults.outlinedCardColors(
+            colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)
             ),
         ) {
@@ -540,7 +539,7 @@ private fun RulesPage(state: MainUiState, vm: MainViewModel) {
         // 本地规则集
         OutlinedCard(
             modifier = Modifier.fillMaxWidth(),
-            colors = OutlinedCardDefaults.outlinedCardColors(
+            colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)
             ),
         ) {
