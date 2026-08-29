@@ -31,6 +31,8 @@ data class MainUiState(
     val config: CatConfig = CatConfig(),
     val rulesText: String = "",
     val emoticonsText: String = "",
+    val whitelistMode: Boolean = true,
+    val packagesText: String = "",
     val accessibilityEnabled: Boolean = false,
     val shizukuAvailable: Boolean = false,
     val shizukuGranted: Boolean = false,
@@ -65,6 +67,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             config = config,
             rulesText = config.replacementRules.joinToString("\n") { "${it.first}=${it.second}" },
             emoticonsText = config.customEmoticons.joinToString("\n"),
+            whitelistMode = config.isWhitelistMode,
+            packagesText = config.managedPackages.joinToString("\n"),
             autoEnable = auto,
         )
         refreshStatus()
@@ -112,6 +116,20 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         _ui.value = _ui.value.copy(emoticonsText = t)
         config = config.copy(
             customEmoticons = t.split("\n").map { it.trim() }.filter { it.isNotEmpty() }.toTypedArray()
+        )
+        persist()
+    }
+
+    fun toggleMode(whitelist: Boolean) {
+        config = config.copy(isWhitelistMode = whitelist)
+        _ui.value = _ui.value.copy(whitelistMode = whitelist)
+        persist()
+    }
+
+    fun updatePackagesText(t: String) {
+        _ui.value = _ui.value.copy(packagesText = t)
+        config = config.copy(
+            managedPackages = t.split("\n").map { it.trim() }.filter { it.isNotEmpty() }
         )
         persist()
     }

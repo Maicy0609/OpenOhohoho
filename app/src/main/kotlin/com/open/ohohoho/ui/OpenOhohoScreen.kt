@@ -248,6 +248,36 @@ private fun SettingsPage(state: MainUiState, vm: MainViewModel) {
             }
         }
 
+        // 目标应用（黑白名单）
+        ElevatedCard(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("目标应用", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "白名单=只修改下列应用；黑名单=修改除下列外的所有应用",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = state.whitelistMode,
+                        onClick = { vm.toggleMode(true) },
+                        label = { Text("白名单") },
+                    )
+                    FilterChip(
+                        selected = !state.whitelistMode,
+                        onClick = { vm.toggleMode(false) },
+                        label = { Text("黑名单") },
+                    )
+                }
+                OutlinedTextField(
+                    value = state.packagesText,
+                    onValueChange = { vm.updatePackagesText(it) },
+                    placeholder = { Text("每行一个包名，如\ncom.tencent.mobileqq") },
+                    modifier = Modifier.fillMaxWidth().height(120.dp),
+                )
+            }
+        }
+
         // 自定义颜文字
         OutlinedCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {

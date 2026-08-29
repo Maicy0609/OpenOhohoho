@@ -14,6 +14,8 @@ data class CatConfig(
     var processingMode: String = MODE_REALTIME, // 默认实时修改
     var customEmoticons: Array<String> = emptyArray(),
     var replacementRules: List<Pair<String, String>> = emptyList(), // 自定义替换规则
+    var isWhitelistMode: Boolean = true,       // true=白名单，false=黑名单
+    var managedPackages: List<String> = emptyList(), // 参与修改的应用包名
 ) {
 
     fun getActiveEmoticons(): Array<String> =
@@ -29,6 +31,8 @@ data class CatConfig(
             .putString("processing_mode", processingMode)
             .putString("custom_emoticons", customEmoticons.joinToString("\n"))
             .putString("custom_rules", replacementRules.joinToString("\n") { "${it.first}=${it.second}" })
+            .putBoolean("whitelist_mode", isWhitelistMode)
+            .putString("managed_packages", managedPackages.joinToString("\n"))
             .apply()
     }
 
@@ -36,6 +40,15 @@ data class CatConfig(
         const val PREFS_NAME = "cat_config"
         const val MODE_PUNCTUATION = "punctuation"
         const val MODE_REALTIME = "realtime"
+
+        /** 默认白名单包名（QQ 家族 + 微信）。 */
+        val DEFAULT_PACKAGES = listOf(
+            "com.tencent.mobileqq",
+            "com.tencent.mobileqqi",
+            "com.tencent.qqlite",
+            "com.tencent.tim",
+            "com.tencent.mm",
+        )
 
         fun load(context: Context): CatConfig {
             val sp = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -61,7 +74,13 @@ data class CatConfig(
                         val from = t.substring(0, idx).trim()
                         val to = t.substring(idx + 1).trim()
                         if (from.isEmpty() || to.isEmpty()) null else from to to
-                    } ?: emptyList()
+                    } ?: emptyList(),
+                isWhitelistMode = sp.getBoolean("whitelist_mode", true),
+                managedPackages = sp.getString("managed_packages", null)
+                    ?.split("\n")
+                    ?.map { it.trim() }
+                    ?.filter { it.isNotEmpty() }
+                    ?.ifEmpty { null } ?: DEFAULT_PACKAGES
             )
         }
 

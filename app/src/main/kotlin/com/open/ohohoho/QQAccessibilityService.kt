@@ -36,15 +36,6 @@ class QQAccessibilityService : AccessibilityService() {
             "com.tencent.mm:id/ai7",            // 微信发送按钮(常见 id)
         )
 
-        // 目标应用包名：QQ 家族 + 微信
-        private val TARGET_PACKAGES = setOf(
-            "com.tencent.mobileqq",   // QQ 正式版
-            "com.tencent.mobileqqi",  // QQ 国际版
-            "com.tencent.qqlite",     // QQ 轻聊版
-            "com.tencent.tim",        // TIM
-            "com.tencent.mm",         // 微信
-        )
-
         // 事件类型常量
         private const val TYPE_WINDOW_STATE_CHANGED = 0x00000020
         private const val TYPE_VIEW_CLICKED = 0x00000001
@@ -68,6 +59,8 @@ class QQAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
 
+        val cfg = CatConfig.load(this)
+
         val info = AccessibilityServiceInfo().apply {
             eventTypes = TYPE_WINDOW_STATE_CHANGED or TYPE_VIEW_CLICKED or
                 TYPE_VIEW_TEXT_CHANGED or TYPE_WINDOW_CONTENT_CHANGED
@@ -76,12 +69,15 @@ class QQAccessibilityService : AccessibilityService() {
                 AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS or
                 AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
             notificationTimeout = 50
-            packageNames = TARGET_PACKAGES.toTypedArray()
+            // 白名单：只监听清单内应用；黑名单：监听所有应用，代码里再过滤
+            packageNames = if (cfg.isWhitelistMode) cfg.managedPackages.toTypedArray() else null
         }
         setServiceInfo(info)
 
-        cachedConfig = CatConfig.load(this)
-        AppLog.log("无障碍服务已连接，包名=${TARGET_PACKAGES.joinToString()}")
+        cachedConfig = cfg
+        AppLog.log(
+            "无障碍服务已连接，模式=${if (cfg.isWhitelistMode) "白名单" else "黑名单"}，应用=${cfg.managedPackages.joinToString()}"
+        )
 
         // 打开悬浮窗日志，方便调试（若用户已授予悬浮窗权限）
         OverlayHelper.ensureOverlayLog(this)
@@ -91,7 +87,7 @@ class QQAccessibilityService : AccessibilityService() {
         if (event == null) return
 
         val pkg = event.packageName?.toString() ?: ""
-        if (pkg !in TARGET_PACKAGES) return
+        if (pkg.isEmpty() || !shouldProcess(pkg)) return
 
         when (event.eventType) {
             TYPE_WINDOW_STATE_CHANGED -> {
@@ -101,8 +97,6 @@ class QQAccessibilityService : AccessibilityService() {
                 lastSet = ""
                 lastWriteTime = 0L
                 cachedConfig = CatConfig.load(this)
-                // 调试开关开启时，把当前窗口所有可编辑节点 id 打到悬浮窗日志
-                if (debugDumpEnabled()) dumpEditableNodes()
             }
 
             TYPE_VIEW_CLICKED -> {
@@ -128,14 +122,6 @@ class QQAccessibilityService : AccessibilityService() {
 
     /** 处理输入变化事件（TYPE_VIEW_TEXT_CHANGED / TYPE_WINDOW_CONTENT_CHANGED）。 */
     private fun handleInputChange(event: AccessibilityEvent) {
-        // 调试：确认微信是否真的发送输入事件、事件源是否可用
-        if (debugDumpEnabled()) {
-            val src = event.source
-            AppLog.log(
-                "输入事件: type=${event.eventType} pkg=${event.packageName} " +
-                    "srcCls=${src?.className?.toString() ?: "null"} editable=${src?.isEditable}"
-            )
-        }
         // 每次重新加载，让功能开关/处理模式改动立即生效
         cachedConfig = CatConfig.load(this)
         val mode = cachedConfig?.processingMode ?: CatConfig.MODE_PUNCTUATION
@@ -162,8 +148,9 @@ class QQAccessibilityService : AccessibilityService() {
         processing = true
         try {
             val root = rootInActiveWindow ?: return
-            // 双保险：确认当前活动窗口确实是目标应用，避免误写其它应用
-            if (root.packageName?.toString() !in TARGET_PACKAGES) {
+            // 双保险：确认当前活动窗口是目标应用，避免误写其它应用
+            val rpkg = root.packageName?.toString() ?: ""
+            if (rpkg.isEmpty() || !shouldProcess(rpkg)) {
                 root.recycle()
                 return
             }
@@ -293,52 +280,11 @@ class QQAccessibilityService : AccessibilityService() {
         return null
     }
 
-    /** 调试开关：是否抓取界面可编辑节点。 */
-    private fun debugDumpEnabled(): Boolean = try {
-        getSharedPreferences("debug", MODE_PRIVATE).getBoolean("dump", false)
-    } catch (t: Throwable) {
-        false
-    }
-
-    /** 调试：先看 rootInActiveWindow，再遍历 getWindows() 所有窗口，确认微信是否暴露任何内容。 */
-    private fun dumpEditableNodes() {
-        val sb = StringBuilder()
-
-        val root = rootInActiveWindow
-        if (root != null) {
-            sb.append("== rootInActiveWindow ==")
-            walkNodes(root, sb, 0)
-            root.recycle()
-        } else {
-            sb.append("rootInActiveWindow = null")
-        }
-
-        sb.append("\n== getWindows() ==")
-        try {
-            for (w in getWindows()) {
-                sb.append("\n[window] type=${w.type} layer=${w.layer}")
-                val r = w.root ?: continue
-                walkNodes(r, sb, 1)
-                r.recycle()
-            }
-        } catch (t: Throwable) {
-            sb.append("\ngetWindows 失败: ${t.message}")
-        }
-
-        AppLog.log("UI树: $sb")
-    }
-
-    private fun walkNodes(node: AccessibilityNodeInfo, sb: StringBuilder, depth: Int) {
-        val cls = node.className?.toString() ?: ""
-        val id = node.viewIdResourceName ?: ""
-        val editable = if (node.isEditable) " [可编辑]" else ""
-        val txt = node.text?.toString()?.take(24) ?: ""
-        sb.append("\n[d$depth] cls=$cls id=$id$editable txt=\"$txt\"")
-        for (i in 0 until node.childCount) {
-            val c = node.getChild(i) ?: continue
-            walkNodes(c, sb, depth + 1)
-            c.recycle()
-        }
+    /** 按黑白名单判断是否处理该包名。 */
+    private fun shouldProcess(pkg: String): Boolean {
+        val cfg = cachedConfig ?: CatConfig.load(this).also { cachedConfig = it }
+        return if (cfg.isWhitelistMode) pkg in cfg.managedPackages
+               else pkg !in cfg.managedPackages
     }
 
     /** 定位聊天输入框：优先按已知 id 精确匹配（QQ/微信），兜底找第一个可见可编辑节点。 */
